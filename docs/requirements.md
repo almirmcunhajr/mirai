@@ -48,7 +48,7 @@ The system must allow users to create new story branches by selecting decision p
 - The user is redirected to the newly created branch.  
 
 #### Main Event Flow  
-1. The user accesses the **Story Tree Interface** from the story interface.  
+1. The user accesses the story tree interface from the story interface.  
 2. The system displays a visual representation of the story structure, showing all decision points.  
 3. The user selects a decision point where they want to create a new branch.  
 4. The system prompts the user to make a new decision.  
@@ -71,14 +71,14 @@ The system must allow users to navigate the story tree, select individual branch
 - The story tree is updated if a new branch is created.  
 
 #### Main Event Flow  
-1. The user accesses the **Story Tree Interface** from the story interface.  
+1. The user accesses the story tree interface from the story interface.  
 2. The system displays a visual representation of the story structure, showing all branches and decision points.  
 3. The user selects a branch to review.  
 4. The system loads and displays the selected branch's storyline.  
 5. The user can rewatch or review the content of that branch.  
 6. At the end of the branch, the system presents two options:  
-   - **Take the last decision again**: The system regenerates the storyline based on the last choice.  
-   - **Make a new decision**: The user provides a new decision input, creating a new branch.  
+   - Take the last decision again: The system regenerates the storyline based on the last choice.  
+   - Make a new decision: The user provides a new decision input, creating a new branch.  
 7. If the user chooses to make a new decision:  
    - The system generates a new storyline based on the new decision.  
    - The system updates the story tree with the newly created branch.  
@@ -104,8 +104,8 @@ The system must allow users to navigate through the last watched path of the sto
 3. The system updates playback to the selected position.  
 4. If the user reaches a decision point, the system prompts the user to make a choice.  
 5. The user can either:  
-   - **Take the last decision again**: The system regenerates the storyline based on the last choice.  
-   - **Make a new decision**: The user provides a new decision input, creating a new branch. 
+   - Take the last decision again: The system regenerates the storyline based on the last choice.  
+   - Make a new decision: The user provides a new decision input, creating a new branch. 
 6. If the user makes a decision, the system updates the story tree and progress bar to reflect the new branch.  
 7. The user continues watching the story, with the progress bar dynamically updating based on the new path.  
 
@@ -123,8 +123,8 @@ The system must allow users to control playback by pausing and adjusting the vol
 #### Main Event Flow  
 1. The user interacts with the story player controls.  
 2. The system provides the following options:  
-   - **Pause/Play**: The user can pause or resume playback.  
-   - **Volume Control**: The user can increase, decrease, or mute the volume.  
+   - Pause/Play: The user can pause or resume playback.  
+   - Volume Control: The user can increase, decrease, or mute the volume.  
 3. The system applies the selected action in real time.  
 4. The user continues interacting with the story as needed.  
 
