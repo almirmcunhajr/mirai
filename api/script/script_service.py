@@ -4,8 +4,8 @@ import logging
 
 from facade.chatbot import Chatbot
 from script.script import Script
-from api.common.genre import Genre
-from api.common.idiom import Idiom
+from common.genre import Genre
+from common.idiom import Idiom
 from script.branch import Branch
 
 from pydantic import ValidationError
