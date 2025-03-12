@@ -111,7 +111,7 @@ class ScriptService:
             }}
             ```
 
-            This narrative genre is {genre.value} and the idiom is {idiom}.
+            This narrative genre is {genre.value} and the idiom is {idiom.value}.
 
             Below is the current path up to this point, listed in chronological order. Each element contains the previously generated response in the script field and the corresponding decision in the decision field:
             ```json
