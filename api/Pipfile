@@ -5,10 +5,11 @@ name = "pypi"
 
 [packages]
 openai = "==1.66.2"
-dotenv = "==0.9.9"
+python-dotenv = "==1.0.1"
 elevenlabs = "==1.54.0"
 requests = "==2.31.0"
 moviepy = "==1.0.3"
+pycountry = "==23.12.11"
 
 [dev-packages]
 

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "983b7fd017b574eb35ab079e53ed2e5514572e8e5f92c5ffadfa3a7f26b0ff65"
+            "sha256": "0238caf54039b4713ef4f751ba3ec1e838ab1397214eff29b248c46bc52b1131"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -152,13 +152,6 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==1.9.0"
-        },
-        "dotenv": {
-            "hashes": [
-                "sha256:29cf74a087b31dafdb5a446b6d7e11cbce8ed2741540e2339c69fbef92c94ce9"
-            ],
-            "index": "pypi",
-            "version": "==0.9.9"
         },
         "elevenlabs": {
             "hashes": [
@@ -465,6 +458,15 @@
             ],
             "version": "==0.1.10"
         },
+        "pycountry": {
+            "hashes": [
+                "sha256:00569d82eaefbc6a490a311bfa84a9c571cff9ddbf8b0a4f4e7b4f868b4ad925",
+                "sha256:2ff91cff4f40ff61086e773d61e72005fe95de4a57bfc765509db05695dc50ab"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.8'",
+            "version": "==23.12.11"
+        },
         "pydantic": {
             "hashes": [
                 "sha256:427d664bf0b8a2b34ff5dd0f5a18df00591adcee7198fbd71981054cef37b584",
@@ -584,6 +586,7 @@
                 "sha256:e324ee90a023d808f1959c46bcbc04446a10ced277783dc6ee09987c37ec10ca",
                 "sha256:f7b63ef50f1b690dddf550d03497b66d609393b40b564ed0d674909a68ebf16a"
             ],
+            "index": "pypi",
             "markers": "python_version >= '3.8'",
             "version": "==1.0.1"
         },

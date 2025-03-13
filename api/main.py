@@ -3,13 +3,11 @@ from dotenv import load_dotenv
 
 from facade.chatgpt import ChatGPT
 from facade.elevenlabs import ElevenLabs
-from script.script_service import ScriptService
+from script.script_service import ScriptService, InvalidLanguageError
 from visual.visual_service import VisualService
 from audio.audio_service import AudioService
 from audiovisual.audiovisual_service import AudioVisualService
 from common.genre import Genre
-from common.idiom import Idiom
-from script.script import Script
 
 def main():
     # Load environment variables
@@ -38,7 +36,7 @@ def main():
         # Generate initial script (fantasy story in English)
         script = script_service.generate(
             genre=Genre.FANTASY,
-            idiom=Idiom.PT
+            language_code="ja"
         )
         
         print(f"\nGenerated script with {len(script.frames)} frames:")
@@ -64,6 +62,8 @@ def main():
         else:
             print("\nError: Failed to generate video")
 
+    except InvalidLanguageError as e:
+        print(f"\nError: {str(e)}")
     except Exception as e:
         print(f"\nError: {str(e)}")
 

@@ -5,10 +5,17 @@ import logging
 from facade.chatbot import Chatbot
 from script.script import Script
 from common.genre import Genre
-from common.idiom import Idiom
-from script.branch import Branch
+from utils import validate_language
 
 from pydantic import ValidationError
+
+class InvalidLanguageError(Exception):
+    """Raised when an invalid language code is provided."""
+    pass
+
+class InvalidChatBotResponse(Exception):
+    """Raised when the chatbot response is invalid."""
+    pass
 
 class ScriptService:
     def __init__(self, chatbot: Chatbot):
@@ -28,9 +35,29 @@ class ScriptService:
                 raise InvalidChatBotResponse(response)
             return json.loads(match.group(1))
 
-    def generate(self, genre: Genre, idiom: Idiom, path:list[Branch] = []) -> Script:
+    def generate(self, genre: Genre, language_code: str, path:list[dict] = []) -> Script:
+        """
+        Generate a narrative script in the specified genre and language.
+        
+        Args:
+            genre (Genre): The genre of the narrative
+            language_code (str): The ISO 639-1 or ISO 639-2 language code (e.g., 'en', 'eng', 'pt', 'por')
+            path (list[dict]): List of previous script-decision pairs
+            
+        Returns:
+            Script: The generated script
+            
+        Raises:
+            InvalidLanguageError: If the language code is invalid
+            InvalidChatBotResponse: If the chatbot response is invalid
+        """
+        # Validate language code
+        language = validate_language(language_code)
+        if not language:
+            raise InvalidLanguageError(f"Invalid language code: {language_code}")
+
         prompt = f'''
-        Generate a {genre.value} narrative in {idiom.value} up to a crucial decision moment. The story should be engaging, with a clear progression of events, culminating in a meaningful choice for the protagonist.
+        Generate a {genre.value} narrative in {language} up to a crucial decision moment. The story should be engaging, with a clear progression of events, culminating in a meaningful choice for the protagonist.
 
         The narrative should be structured into frames, each representing a moment or scene, with vivid and consistent details about characters and the environment. Each frame should precisely describe visual attributes, emotions, and postures of the characters, as well as lighting, weather, sounds, and objects in the scene, ensuring that characteristics remain uniform throughout the narrative.
 
@@ -128,7 +155,7 @@ class ScriptService:
             }}
             ```
 
-            This narrative genre is {genre.value} and the idiom is {idiom.value}.
+            This narrative genre is {genre.value} and the language is {language}.
 
             Below is the current path up to this point, listed in chronological order. Each element contains the previously generated response in the script field and the corresponding decision in the decision field:
             ```json
@@ -142,6 +169,3 @@ class ScriptService:
             return Script(**script_dict)
         except (json.JSONDecodeError, ValidationError):
             raise InvalidChatBotResponse(response)
-        
-class InvalidChatBotResponse(Exception):
-    pass
