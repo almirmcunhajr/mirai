@@ -13,7 +13,7 @@ export class ApiService {
     return ApiService.instance;
   }
 
-  async createStory(genre: Genre, languageCode: string = 'en'): Promise<Story> {
+  async createStory(genre: Genre, languageCode: string = 'pt-BR'): Promise<Story> {
     const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
       headers: {
@@ -29,7 +29,7 @@ export class ApiService {
     return response.json();
   }
 
-  async createBranch(storyId: string, parentNodeId: string, decision: string, languageCode: string = 'en'): Promise<Story> {
+  async createBranch(storyId: string, parentNodeId: string, decision: string, languageCode: string = 'pt-BR'): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}/branches`, {
       method: 'POST',
       headers: {
@@ -43,10 +43,12 @@ export class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create branch');
+      const error = await response.json().catch(() => ({ message: 'Failed to create branch' }));
+      throw new Error(error.message || 'Failed to create branch');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   }
 
   async getStoryTree(storyId: string): Promise<any> {

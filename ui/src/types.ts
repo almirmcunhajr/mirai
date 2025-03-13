@@ -1,4 +1,14 @@
-export type Genre = 'fantasy' | 'sci-fi' | 'mystery' | 'horror';
+export type Genre = 
+  | 'action'
+  | 'adventure'
+  | 'comedy'
+  | 'drama'
+  | 'fantasy'
+  | 'horror'
+  | 'mystery'
+  | 'romance'
+  | 'science fiction'
+  | 'thriller';
 
 export interface Story {
   id: string;

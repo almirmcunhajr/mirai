@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, ChevronUp } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Split, Menu, Home, PlusCircle } from 'lucide-react';
 import { useStoryStore } from '../store/useStoryStore';
 import { ApiService } from '../services/api';
 import { StoryTree } from './StoryTree';
@@ -10,6 +10,9 @@ const api = ApiService.getInstance();
 export const StoryPlayer: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showTree, setShowTree] = React.useState(false);
+  const [showSidebar, setShowSidebar] = React.useState(false);
+  const [showControls, setShowControls] = React.useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const {
     isPlaying,
     volume,
@@ -26,11 +29,52 @@ export const StoryPlayer: React.FC = () => {
     setVideoProgress,
     makeDecision,
     storyNodes,
-    navigateToNode
+    navigateToNode,
+    setCurrentView,
+    setShowDecisions
   } = useStoryStore();
 
   const currentNode = getCurrentNode();
   
+  useEffect(() => {
+    // Request fullscreen on mount
+    document.documentElement.requestFullscreen().catch(() => {
+      console.log('Fullscreen request failed');
+    });
+
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          console.log('Exit fullscreen failed');
+        });
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = () => {
+      setShowControls(true);
+      
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      
+      controlsTimeoutRef.current = setTimeout(() => {
+        if (!showTree) { // Don't hide controls if tree is shown
+          setShowControls(false);
+        }
+      }, 3000);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [showTree]);
+
   useEffect(() => {
     if (!videoRef.current) return;
     
@@ -46,13 +90,13 @@ export const StoryPlayer: React.FC = () => {
     videoRef.current.volume = volume;
   }, [volume]);
 
-  if (!currentStory || !currentNode) return null;
+  if (!currentStory) return null;
 
-  const videoUrl = currentNode.videoUrl;
+  const videoUrl = currentNode?.videoUrl;
   console.log('Current Story:', currentStory);
   console.log('Current Node:', currentNode);
   console.log('Video URL:', videoUrl);
-  console.log('Decisions:', currentNode.decisions);
+  console.log('Decisions:', currentNode?.decisions);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -66,12 +110,30 @@ export const StoryPlayer: React.FC = () => {
     if (!videoRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
-    videoRef.current.currentTime = pos * videoRef.current.duration;
+    const newTime = pos * videoDuration;
+    videoRef.current.currentTime = newTime;
+    setVideoProgress(newTime, videoDuration);
   };
 
   const handleDecision = async (nextNode: string) => {
     try {
-      await makeDecision(nextNode);
+      // Check if the branch already exists
+      if (storyNodes[nextNode]) {
+        // If it exists, just navigate to it
+        navigateToNode(nextNode);
+        setVideoProgress(0, videoDuration);
+        setShowDecisions(false); // Hide decisions until video ends
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.onloadeddata = () => {
+            setPlaying(true);
+            videoRef.current?.play();
+          };
+        }
+      } else {
+        // If it doesn't exist, create a new branch
+        await makeDecision(nextNode);
+      }
     } catch (error) {
       // Error is handled by the store
       console.error('Failed to make decision:', error);
@@ -80,21 +142,83 @@ export const StoryPlayer: React.FC = () => {
 
   const handleNodeClick = (nodeId: string) => {
     navigateToNode(nodeId);
+    setVideoProgress(0, videoDuration); // Reset progress to 0
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0; // Reset video time to beginning
+      
+      // Wait for video to be ready before playing
+      videoRef.current.onloadeddata = () => {
+        setPlaying(true);
+        videoRef.current?.play();
+      };
+    }
+    setShowTree(false); // Close the tree modal
   };
 
   return (
     <div className="fixed inset-0 bg-black">
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        className="w-full h-full object-contain"
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={() => setPlaying(false)}
-      />
+      {videoUrl && (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={() => setPlaying(false)}
+        />
+      )}
+
+      {/* Sidebar with Toggle Button */}
+      <div className={clsx(
+        "fixed inset-y-0 left-0 transition-transform duration-300 z-40",
+        showSidebar ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="relative h-full">
+          {/* Sidebar Content */}
+          <div className="h-full w-16 md:w-64 bg-black/95 border-r border-gray-800">
+            <div className="p-4 md:p-6">
+              <h1 className="text-red-600 font-bold text-xl hidden md:block">Mir.ai</h1>
+            </div>
+            
+            <nav className="flex-1 px-2">
+              <button
+                onClick={() => setCurrentView('home')}
+                className="w-full flex items-center gap-4 p-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <Home size={24} />
+                <span className="hidden md:block">Home</span>
+              </button>
+              
+              <button
+                onClick={() => setCurrentView('create')}
+                className="w-full flex items-center gap-4 p-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors mt-2"
+              >
+                <PlusCircle size={24} />
+                <span className="hidden md:block">Create New Story</span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Toggle Button */}
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className={clsx(
+              "absolute top-4 right-0 translate-x-full",
+              "p-2 hover:bg-black/30 rounded-full transition text-white/80 hover:text-white",
+              !showControls && "opacity-0"
+            )}
+          >
+            <Menu size={24} />
+          </button>
+        </div>
+      </div>
 
       {isLoading && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        <div className="absolute inset-0 bg-black flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-white mb-2">Creating Your Story</h2>
+            <p className="text-gray-400">Please wait while we generate your unique adventure...</p>
+          </div>
         </div>
       )}
 
@@ -112,7 +236,7 @@ export const StoryPlayer: React.FC = () => {
           <div className="bg-gray-900 p-6 rounded-lg max-w-lg w-full mx-4">
             <h3 className="text-white text-xl font-semibold mb-4">What will you do?</h3>
             <div className="space-y-3">
-              {currentNode.decisions.map((decision) => (
+              {currentNode?.decisions.map((decision) => (
                 <button
                   key={decision.id}
                   onClick={() => handleDecision(decision.targetNodeId)}
@@ -132,29 +256,16 @@ export const StoryPlayer: React.FC = () => {
         </div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-95 text-white p-4">
+      {/* Video Controls */}
+      <div className={clsx(
+        "fixed bottom-0 left-0 right-0 transition-opacity duration-300",
+        "bg-gradient-to-t from-black/40 to-transparent",
+        !showControls && "opacity-0",
+        "text-white p-4"
+      )}>
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-10" /> {/* Spacer for balance */}
-            <button
-              onClick={() => setShowTree(!showTree)}
-              className="flex items-center gap-1 p-2 hover:bg-gray-700 rounded-lg transition"
-            >
-              <ChevronUp size={20} />
-            </button>
-          </div>
-
-          {showTree && (
-            <div className="mb-4 overflow-x-auto">
-              <StoryTree
-                nodes={storyNodes}
-                currentNodeId={currentStory.currentNode}
-                onNodeClick={handleNodeClick}
-              />
-            </div>
-          )}
           <div
-            className="w-full h-1 bg-gray-600 rounded-full mb-4 cursor-pointer"
+            className="w-full h-1 bg-gray-600/50 rounded-full mb-4 cursor-pointer"
             onClick={handleProgressClick}
           >
             <div 
@@ -163,35 +274,73 @@ export const StoryPlayer: React.FC = () => {
             />
           </div>
           
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setPlaying(!isPlaying)}
-              className="p-2 hover:bg-gray-700 rounded-full transition"
-            >
-              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
-            </button>
-            
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <button
-                onClick={() => setVolume(volume === 0 ? 1 : 0)}
-                className="p-2 hover:bg-gray-700 rounded-full transition"
+                onClick={() => setPlaying(!isPlaying)}
+                className="p-2 hover:bg-black/30 rounded-full transition"
               >
-                {volume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                {isPlaying ? <Pause size={24} /> : <Play size={24} />}
               </button>
-              
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="w-24"
-              />
+
+              <button
+                onClick={() => setShowTree(!showTree)}
+                className="p-2 hover:bg-black/30 rounded-full transition"
+              >
+                <Split size={20} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setVolume(volume === 0 ? 1 : 0)}
+                  className="p-2 hover:bg-black/30 rounded-full transition"
+                >
+                  {volume === 0 ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                </button>
+                
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-24"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Story Tree Modal */}
+      {showTree && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-lg w-1/2 h-[60vh] overflow-hidden">
+            <div className="p-6 h-full flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Story Tree</h2>
+                <button
+                  onClick={() => setShowTree(false)}
+                  className="p-2 hover:bg-gray-800 rounded-full transition text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden flex items-center justify-center">
+                <StoryTree
+                  nodes={storyNodes}
+                  currentNodeId={currentStory.currentNode}
+                  onNodeClick={handleNodeClick}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -47,12 +47,65 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
   
   createStory: async (genre: Genre) => {
     try {
-      set({ isLoading: true, error: null });
+      // Immediately switch to player view with loading state
+      set({ 
+        currentView: 'player',
+        isLoading: true,
+        error: null,
+        currentStory: {
+          id: 'pending',
+          title: 'Creating your story...',
+          genre,
+          currentNode: 'pending',
+          lastPlayedAt: new Date(),
+          thumbnail: ''
+        }
+      });
+
       const newStory = await api.createStory(genre);
+      
+      // Load the story tree
+      const storyTree = await api.getStoryTree(newStory.id);
+      
+      // Transform nodes into our format
+      const nodeMap: Record<string, StoryNode> = {};
+      const transformNode = (node: any): StoryNode => {
+        const transformedNode: StoryNode = {
+          id: node.id,
+          content: node.script?.frames?.[0]?.narration || '',
+          videoUrl: node.video_url,
+          decisions: (node.script?.decisions || []).map((text: string, index: number) => ({
+            id: `${node.id}-decision-${index}`,
+            text,
+            targetNodeId: node.children[index] || ''
+          })),
+          parentId: node.parent_id,
+          children: node.children.map((childId: string) => {
+            const childNode = storyTree.nodes.find((n: any) => n.id === childId);
+            if (childNode) {
+              return transformNode(childNode);
+            }
+            return null;
+          }).filter(Boolean) as StoryNode[]
+        };
+        
+        nodeMap[node.id] = transformedNode;
+        return transformedNode;
+      };
+
+      // Transform all nodes starting from the root
+      const rootNode = storyTree.nodes.find((n: any) => n.id === storyTree.root_node_id);
+      if (rootNode) {
+        transformNode(rootNode);
+      }
+      
       set((state: StoryState) => ({
         stories: [...state.stories, newStory],
-        currentStory: newStory,
-        currentView: 'player',
+        currentStory: {
+          ...newStory,
+          currentNode: storyTree.root_node_id
+        },
+        storyNodes: nodeMap,
         showDecisions: false,
         isPlaying: true,
         isLoading: false
@@ -106,11 +159,19 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
       if (rootNode) {
         transformNode(rootNode);
       }
+
+      // Find the most recently created leaf node
+      let latestNode = storyTree.nodes[0];
+      storyTree.nodes.forEach((node: any) => {
+        if (node.created_at > latestNode.created_at) {
+          latestNode = node;
+        }
+      });
       
       set((state: StoryState) => ({
         currentStory: {
           ...story,
-          currentNode: storyTree.root_node_id
+          currentNode: latestNode.id
         },
         currentView: 'player',
         showDecisions: false,
@@ -146,55 +207,63 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
         throw new Error('No story loaded');
       }
 
-      const updatedStory = await api.createBranch(
+      const response = await api.createBranch(
         state.currentStory.id,
         state.currentStory.currentNode,
         nextNode
       );
 
-      // Transform the new branch and add it to the tree
-      const transformNode = (node: any): StoryNode => {
-        // Transform script decisions into our Decision format
-        const decisions = (node.script?.decisions || []).map((text: string, index: number) => ({
-          id: `${node.id}-decision-${index}`,
-          text,
-          targetNodeId: node.children[index] || ''
-        }));
-
-        return {
-          id: node.id,
-          content: node.script?.frames?.[0]?.narration || '',
-          videoUrl: node.video_url,
-          decisions,
-          parentId: node.parent_id,
-          children: (node.children || []).map(transformNode)
-        };
-      };
-
-      const transformedTree = transformNode(updatedStory);
-      
-      // Update the node map with the new branch
-      const nodeMap = { ...state.storyNodes };
-      const addToMap = (node: StoryNode) => {
-        nodeMap[node.id] = node;
-        node.children.forEach(addToMap);
-      };
-      addToMap(transformedTree);
-
+      // Update the current node and story state
       set((state: StoryState) => ({
         currentStory: {
-          ...state.currentStory,
-          currentNode: nextNode,
-          lastPlayedAt: new Date()
+          ...state.currentStory!,
+          currentNode: nextNode
         },
-        storyNodes: nodeMap,
         showDecisions: false,
         currentVideoTime: 0,
         isPlaying: true,
-        currentView: 'player',
-        isLoading: false
+        isLoading: false,
+        error: null
       }));
+
+      // Load the updated story tree
+      const storyTree = await api.getStoryTree(state.currentStory.id);
+      
+      // Transform nodes into our format
+      const nodeMap: Record<string, StoryNode> = {};
+      const transformNode = (node: any): StoryNode => {
+        const transformedNode: StoryNode = {
+          id: node.id,
+          content: node.script?.frames?.[0]?.narration || '',
+          videoUrl: node.video_url,
+          decisions: (node.script?.decisions || []).map((text: string, index: number) => ({
+            id: `${node.id}-decision-${index}`,
+            text,
+            targetNodeId: node.children[index] || ''
+          })),
+          parentId: node.parent_id,
+          children: node.children.map((childId: string) => {
+            const childNode = storyTree.nodes.find((n: any) => n.id === childId);
+            if (childNode) {
+              return transformNode(childNode);
+            }
+            return null;
+          }).filter(Boolean) as StoryNode[]
+        };
+        
+        nodeMap[node.id] = transformedNode;
+        return transformedNode;
+      };
+
+      // Transform all nodes starting from the root
+      const rootNode = storyTree.nodes.find((n: any) => n.id === storyTree.root_node_id);
+      if (rootNode) {
+        transformNode(rootNode);
+      }
+      
+      set({ storyNodes: nodeMap });
     } catch (error) {
+      console.error('Decision error:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to make decision',
         isLoading: false 
@@ -209,8 +278,8 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
   
   setVideoProgress: (time: number, duration: number) => {
     set({ currentVideoTime: time, videoDuration: duration });
-    // Show decisions when video is near the end (2 seconds before end)
-    if (duration > 0 && duration - time <= 2 && !get().showDecisions) {
+    // Show decisions when video ends
+    if (duration > 0 && duration - time == 0 && !get().showDecisions) {
       set({ showDecisions: true, isPlaying: false });
     }
   },

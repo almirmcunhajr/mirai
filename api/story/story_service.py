@@ -19,7 +19,7 @@ class StoryService:
         self.repository = StoryRepository()
         self.logger = logging.getLogger(__name__)
 
-    async def create_story(self, genre: Genre, language_code: str = "en") -> Story:
+    async def create_story(self, genre: Genre, language_code: str = "pt-BR") -> Story:
         """
         Creates a new story with an initial branch.
         

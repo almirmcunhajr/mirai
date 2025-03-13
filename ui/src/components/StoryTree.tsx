@@ -1,6 +1,6 @@
 import React from 'react';
+import Tree from 'react-d3-tree';
 import { StoryNode } from '../types';
-import clsx from 'clsx';
 
 interface StoryTreeProps {
   nodes: Record<string, StoryNode>;
@@ -9,68 +9,115 @@ interface StoryTreeProps {
 }
 
 export const StoryTree: React.FC<StoryTreeProps> = ({ nodes, currentNodeId, onNodeClick }) => {
-  const renderNode = (nodeId: string, level: number = 0): React.ReactNode => {
+  // Convert our nodes structure to D3 tree format
+  const convertToD3Tree = (nodeId: string): any => {
     const node = nodes[nodeId];
     if (!node) return null;
 
     const isCurrentNode = nodeId === currentNodeId;
-    const hasChildren = node.children.length > 0;
 
-    return (
-      <div key={nodeId} className="relative">
-        <div className="flex items-center">
-          {/* Vertical line from parent */}
-          {level > 0 && (
-            <div className="absolute left-0 top-0 bottom-1/2 w-px bg-gray-600" />
-          )}
-          
-          {/* Horizontal line to parent */}
-          {level > 0 && (
-            <div className="absolute left-0 top-1/2 w-4 h-px bg-gray-600" />
-          )}
-          
-          {/* Node content */}
-          <button
-            onClick={() => onNodeClick(nodeId)}
-            className={clsx(
-              "px-3 py-1 rounded text-sm transition",
-              isCurrentNode
-                ? "bg-red-600 text-white"
-                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-            )}
-          >
-            {node.content.substring(0, 30)}...
-          </button>
-        </div>
+    // Find the decision text from parent node's decisions
+    let decisionText = 'Start';
+    if (node.parentId) {
+      const parentNode = nodes[node.parentId];
+      if (parentNode) {
+        const decision = parentNode.decisions.find(d => d.targetNodeId === nodeId);
+        if (decision) {
+          decisionText = decision.text;
+        }
+      }
+    }
 
-        {/* Children */}
-        {hasChildren && (
-          <div className="flex gap-8 mt-4">
-            {node.children.map((child, index) => (
-              <div key={child.id} className="relative">
-                {/* Vertical line to children */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-600" />
-                {/* Horizontal line to each child */}
-                <div className="absolute left-1/2 top-0 w-4 h-px bg-gray-600" />
-                {renderNode(child.id, level + 1)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    return {
+      name: '',  // We'll render text in the custom node component
+      id: nodeId,
+      attributes: {
+        isCurrentNode,
+        text: decisionText
+      },
+      children: node.children.map(child => convertToD3Tree(child.id)).filter(Boolean)
+    };
   };
 
   // Find root node (node without parent)
   const rootNodeId = Object.values(nodes).find(node => !node.parentId)?.id;
   if (!rootNodeId) return null;
 
+  const treeData = convertToD3Tree(rootNodeId);
+
+  // Custom node component
+  const renderCustomNode = ({ nodeDatum, toggleNode }: any) => (
+    <g>
+      <circle
+        r={15}
+        fill={nodeDatum.attributes.isCurrentNode ? '#dc2626' : '#1f2937'}
+        onClick={() => onNodeClick(nodeDatum.id)}
+      />
+      <text
+        fill="white"
+        x={20}
+        dy="0.31em"
+        fontSize={12}
+        textAnchor="start"
+        style={{ 
+          pointerEvents: 'none',
+          fill: 'white',
+          stroke: 'none'
+        }}
+      >
+        {nodeDatum.attributes.text}
+      </text>
+    </g>
+  );
+
   return (
-    <div className="p-4 bg-gray-900 rounded-lg">
-      <h3 className="text-white text-lg font-semibold mb-4">Story Tree</h3>
-      <div className="flex justify-center">
-        {renderNode(rootNodeId)}
-      </div>
+    <div style={{ width: '100%', height: '100%' }}>
+      <style>
+        {`
+          .rd3t-link {
+            stroke: white !important;
+          }
+          .rd3t-tree-container {
+            fill: white !important;
+            color: white !important;
+          }
+          .rd3t-label {
+            fill: white !important;
+            color: white !important;
+          }
+          text {
+            fill: white !important;
+            color: white !important;
+          }
+          g text {
+            fill: white !important;
+            color: white !important;
+          }
+          .rd3t-label-text {
+            fill: white !important;
+            color: white !important;
+          }
+          .node__root text,
+          .node__branch text,
+          .node__leaf text {
+            fill: white !important;
+            color: white !important;
+          }
+        `}
+      </style>
+      <Tree
+        data={treeData}
+        orientation="vertical"
+        renderCustomNodeElement={renderCustomNode}
+        pathFunc="step"
+        separation={{ siblings: 2, nonSiblings: 2 }}
+        translate={{ x: 400, y: 80 }}
+        nodeSize={{ x: 200, y: 100 }}
+        rootNodeClassName="node__root"
+        branchNodeClassName="node__branch"
+        leafNodeClassName="node__leaf"
+        centeringTransitionDuration={200}
+      />
     </div>
   );
 }; 
