@@ -3,17 +3,17 @@ from typing import List
 import os
 import requests
 
-from facade.chatbot import Chatbot
+from facade.tti import TTI
 from script.script import Script
 
 class VisualService:
-    def __init__(self, chatbot: Chatbot):
-        self.chatbot = chatbot
+    def __init__(self, tti: TTI):
+        self.tti = tti
         self.logger = logging.getLogger(__name__)
 
     def generate_images(self, script: Script, output_dir: str) -> List[str]:
         """
-        Generates images for each frame in the script using DALL-E through the Chatbot protocol.
+        Generates images for each frame in the script using the TTI service.
         
         Args:
             script (Script): The script containing frames to generate images for
@@ -30,7 +30,7 @@ class VisualService:
         for i, frame in enumerate(script.frames):
             try:
                 # Generate image URL
-                url = self.chatbot.generate_image(frame.description)
+                url = self.tti.generate_image(frame.description)
                 
                 if url:
                     # Download and save the image

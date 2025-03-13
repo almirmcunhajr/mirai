@@ -1,7 +1,12 @@
 from openai import OpenAI
 from typing import Optional
+from dataclasses import dataclass
 
-from .chatbot import Chatbot, ImageGenerationOptions, TextGenerationOptions
+from .chatbot import Chatbot
+
+@dataclass
+class TextGenerationOptions:
+    model: str = "gpt-4"
 
 class ChatGPT(Chatbot):
     def __init__(self, api_key: str):
@@ -17,17 +22,3 @@ class ChatGPT(Chatbot):
             messages=[{"role": "user", "content": text}]
         )
         return completion.choices[0].message.content
-
-    def generate_image(self, prompt: str, options: Optional[ImageGenerationOptions] = None) -> str:
-        """Generate an image from a text prompt using DALL-E."""
-        if options is None:
-            options = ImageGenerationOptions()
-
-        response = self.client.images.generate(
-            model=options.model,
-            prompt=prompt,
-            size=options.size,
-            quality=options.quality,
-            n=options.n
-        )
-        return response.data[0].url

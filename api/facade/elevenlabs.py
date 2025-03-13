@@ -1,7 +1,12 @@
 from typing import Optional
+from dataclasses import dataclass
 from elevenlabs.client import ElevenLabs as ElevenLabsClient
 
-from .tts import TTSOptions
+@dataclass
+class TTSOptions:
+    voice_id: str = "XB0fDUnXU5powFXDhCwa"  # Charlotte
+    model: str = "eleven_multilingual_v2"
+    output_format: str = "mp3_44100_128"
 
 class ElevenLabs:
     def __init__(self, api_key: str):

@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 
 from facade.chatgpt import ChatGPT
+from facade.dalle import DALLE
 from facade.elevenlabs import ElevenLabs
 from script.script_service import ScriptService, InvalidLanguageError
 from visual.visual_service import VisualService
@@ -24,11 +25,12 @@ def main():
     try:
         # Initialize facades
         chatbot = ChatGPT(api_key=openai_api_key)
+        dalle = DALLE(api_key=openai_api_key)
         tts = ElevenLabs(api_key=elevenlabs_api_key)
 
         # Initialize services
         script_service = ScriptService(chatbot)
-        visual_service = VisualService(chatbot)
+        visual_service = VisualService(dalle)
         audio_service = AudioService(tts)
         audiovisual_service = AudioVisualService(visual_service, audio_service)
 
