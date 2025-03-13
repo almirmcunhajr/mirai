@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from facade.chatgpt import ChatGPT
 from facade.dalle import DALLE
 from facade.elevenlabs import ElevenLabs
+from facade.openai_tts import OpenAITTS
 from script.script_service import ScriptService, InvalidLanguageError
 from visual.visual_service import VisualService
 from audio.audio_service import AudioService
@@ -17,16 +18,12 @@ def main():
     # Get API keys from environment
     openai_api_key = os.getenv("OPENAI_API_KEY")
     elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
-    
-    if not openai_api_key or not elevenlabs_api_key:
-        print("Error: Missing API keys. Please set OPENAI_API_KEY and ELEVENLABS_API_KEY in .env file")
-        return
 
     try:
         # Initialize facades
         chatbot = ChatGPT(api_key=openai_api_key)
         dalle = DALLE(api_key=openai_api_key)
-        tts = ElevenLabs(api_key=elevenlabs_api_key)
+        tts = OpenAITTS(api_key=openai_api_key)
 
         # Initialize services
         script_service = ScriptService(chatbot)
