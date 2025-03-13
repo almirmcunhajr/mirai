@@ -4,11 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-openai = "==1.66.2"
-dotenv = "==0.9.9"
-elevenlabs = "==1.54.0"
-requests = "==2.31.0"
-moviepy = "==1.0.3"
 
 [dev-packages]
 
