@@ -4,11 +4,9 @@ from fastapi.responses import StreamingResponse
 
 from video.video_service import VideoService
 from video.exceptions import VideoNotFoundError
+from dependencies import get_video_service
 
 router = APIRouter(prefix="/videos", tags=["videos"])
-
-def get_video_service() -> VideoService:
-    return VideoService()
 
 @router.get("/stories/{story_id}/nodes/{node_id}")
 async def stream_story_video(

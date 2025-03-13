@@ -2,52 +2,23 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel
-import os
 
 from story.story_service import StoryService
 from story.story import Story
 from story.exceptions import StoryNotFoundError, BranchCreationError
 from common.genre import Genre
-from visual.visual_service import VisualService
-from audio.audio_service import AudioService
+from dependencies import get_story_service
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
 class CreateStoryRequest(BaseModel):
     genre: Genre
-    language_code: Optional[str] = "en"
+    language_code: Optional[str] = "pt-BR"
 
 class CreateBranchRequest(BaseModel):
     parent_node_id: UUID
     decision: str
-    language_code: Optional[str] = "en"
-
-def get_story_service() -> StoryService:
-    # TODO: Get these from dependency injection
-    from script.script_service import ScriptService
-    from audiovisual.audiovisual_service import AudioVisualService
-    from facade.chatgpt import ChatGPT
-    from facade.dalle import DALLE
-    from facade.elevenlabs import ElevenLabs
-
-    elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
-    if not elevenlabs_api_key:
-        raise ValueError("ElevenLabs API key not configured")
-    
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        raise ValueError("OpenAI API key not configured")
-    
-    chatbot = ChatGPT(api_key=openai_api_key)
-    dalle = DALLE(api_key=openai_api_key)
-    tts = ElevenLabs(api_key=elevenlabs_api_key)
-    
-    script_service = ScriptService(chatbot)
-    visual_service = VisualService(dalle)
-    audio_service = AudioService(tts)
-    audiovisual_service = AudioVisualService(visual_service, audio_service)
-    
-    return StoryService(script_service, audiovisual_service)
+    language_code: Optional[str] = "pt-BR"
 
 @router.post("")
 async def create_story(
