@@ -35,7 +35,7 @@ class StoryService:
         """
         try:
             # Generate initial script
-            script = self.script_service.generate(genre=genre, language_code=language_code)
+            script = await self.script_service.generate(genre=genre, language_code=language_code)
             
             # Create root node
             root_node = StoryNode(script=script)
@@ -49,7 +49,7 @@ class StoryService:
             )
             
             # Generate video for the initial branch
-            self._generate_video_for_node(story, root_node)
+            await self._generate_video_for_node(story, root_node)
             
             # Save to database
             return await self.repository.create(story)
@@ -87,7 +87,7 @@ class StoryService:
             
             # Generate new script based on the decision
             path = self._get_path_to_node(story, parent_node_id)
-            script = self.script_service.generate(
+            script = await self.script_service.generate(
                 genre=story.genre,
                 language_code=language_code,
                 path=path
@@ -108,7 +108,7 @@ class StoryService:
             story.updated_at = datetime.utcnow()
             
             # Generate video for the new branch
-            self._generate_video_for_node(story, new_node)
+            await self._generate_video_for_node(story, new_node)
             
             # Update in database
             result = await self.repository.update(story)
@@ -166,7 +166,7 @@ class StoryService:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
         return True
 
-    def _generate_video_for_node(self, story: Story, node: StoryNode) -> None:
+    async def _generate_video_for_node(self, story: Story, node: StoryNode) -> None:
         """
         Generates a video for a story node and updates its video_url.
         
@@ -183,7 +183,7 @@ class StoryService:
             self.logger.info(f"Generating video for node {node.id} at path {video_path}")
             
             # Generate video
-            self.audiovisual_service.generate_video(
+            await self.audiovisual_service.generate_video(
                 script=node.script,
                 output_path=str(video_path)
             )

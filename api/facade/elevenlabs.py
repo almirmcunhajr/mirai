@@ -1,6 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass
-from elevenlabs.client import ElevenLabs as ElevenLabsClient
+from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
 
 @dataclass
 class TTSOptions:
@@ -12,16 +12,22 @@ class ElevenLabs:
     def __init__(self, api_key: str):
         self.client = ElevenLabsClient(api_key=api_key)
 
-    def generate_speech(self, text: str, options: Optional[TTSOptions] = None) -> bytes:
+    async def generate_speech(self, text: str, options: Optional[TTSOptions] = None) -> bytes:
         """Generate speech from text using ElevenLabs."""
         if options is None:
             options = TTSOptions()
 
-        # Convert the generator to bytes
+        # Get the async generator
         audio_generator = self.client.text_to_speech.convert(
             text=text,
             voice_id=options.voice_id,
             model_id=options.model,
             output_format=options.output_format
         )
-        return b''.join(audio_generator) 
+        
+        # Collect all chunks from the async generator
+        audio_chunks = []
+        async for chunk in audio_generator:
+            audio_chunks.append(chunk)
+        
+        return b''.join(audio_chunks) 

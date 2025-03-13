@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from typing import Optional
 from dataclasses import dataclass
 
@@ -10,14 +10,14 @@ class TextGenerationOptions:
 
 class ChatGPT(Chatbot):
     def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key)
 
-    def get_response(self, text: str, options: Optional[TextGenerationOptions] = None) -> str:
+    async def generate_text(self, text: str, options: Optional[TextGenerationOptions] = None) -> str:
         """General purpose text completion method."""
         if options is None:
             options = TextGenerationOptions()
 
-        completion = self.client.chat.completions.create(
+        completion = await self.client.chat.completions.create(
             model=options.model,
             messages=[{"role": "user", "content": text}]
         )

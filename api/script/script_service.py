@@ -36,7 +36,7 @@ class ScriptService:
                 raise InvalidChatBotResponse(response)
             return json.loads(match.group(1))
 
-    def generate(self, genre: Genre, language_code: str, path: List[PathNode] = []) -> Script:
+    async def generate(self, genre: Genre, language_code: str, path: List[PathNode] = []) -> Script:
         """
         Generate a narrative script in the specified genre and language.
         
@@ -163,7 +163,7 @@ class ScriptService:
             {json.dumps([node.model_dump() for node in path])}
             ```
             '''
-        response = self.chatbot.get_response(prompt)
+        response = await self.chatbot.generate_text(prompt)
 
         try:
             script_dict = self._parse_json_response(response)

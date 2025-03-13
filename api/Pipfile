@@ -25,6 +25,7 @@ flake8 = "*"
 pycountry = "*"
 requests = "*"
 elevenlabs = "*"
+aiohttp = "*"
 
 [dev-packages]
 

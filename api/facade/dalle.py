@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from typing import Optional
 from dataclasses import dataclass
 
@@ -11,14 +11,14 @@ class ImageGenerationOptions:
 
 class DALLE:
     def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key)
 
-    def generate_image(self, prompt: str, options: Optional[ImageGenerationOptions] = None) -> str:
+    async def generate_image(self, prompt: str, options: Optional[ImageGenerationOptions] = None) -> str:
         """Generate an image from a text prompt using DALL-E."""
         if options is None:
             options = ImageGenerationOptions()
 
-        response = self.client.images.generate(
+        response = await self.client.images.generate(
             model=options.model,
             prompt=prompt,
             size=options.size,

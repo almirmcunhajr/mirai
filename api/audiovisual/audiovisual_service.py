@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+import asyncio
 from moviepy.video.VideoClip import ImageClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 from moviepy.video.compositing.CompositeVideoClip import concatenate_videoclips
@@ -18,7 +19,7 @@ class AudioVisualService:
         self.audio_service = audio_service
         self.logger = logging.getLogger(__name__)
 
-    def generate_video(self, script: Script, output_path: str) -> None:
+    async def generate_video(self, script: Script, output_path: str) -> None:
         """
         Generates a video by composing images and audio for each frame in the script.
         
@@ -37,14 +38,13 @@ class AudioVisualService:
         os.makedirs(audio_dir, exist_ok=True)
         
         try:
-            # Generate images and audio
-            self.logger.info("Generating images...")
-            image_paths = self.visual_service.generate_images(script, images_dir)
-            self.logger.info(f"Generated {len(image_paths)} images")
-            
-            self.logger.info("Generating audio...")
-            narration_paths = self.audio_service.generate_narrations(script, audio_dir)
-            self.logger.info(f"Generated {len(narration_paths)} audio files")
+            # Generate images and audio in parallel
+            self.logger.info("Starting parallel generation of images and audio...")
+            image_paths, narration_paths = await asyncio.gather(
+                self.visual_service.generate_frames(script, images_dir),
+                self.audio_service.generate_narrations(script, audio_dir)
+            )
+            self.logger.info(f"Generated {len(image_paths)} images and {len(narration_paths)} audio files")
             
             # Check if we have all the required files
             if None in image_paths or None in narration_paths:
