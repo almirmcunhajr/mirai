@@ -287,7 +287,7 @@ export const StoryPlayer: React.FC = () => {
                 onClick={() => setShowTree(!showTree)}
                 className="p-2 hover:bg-black/30 rounded-full transition"
               >
-                <Split size={20} />
+                <Split size={20} className="rotate-90" />
               </button>
 
               <div className="flex items-center gap-2">
@@ -305,7 +305,7 @@ export const StoryPlayer: React.FC = () => {
                   step="0.1"
                   value={volume}
                   onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-24"
+                  className="w-24 accent-red-600"
                 />
               </div>
             </div>
