@@ -15,15 +15,30 @@ class ScriptService:
         self.chatbot = chatbot
         self.logger = logging.getLogger(__name__)
 
-    def generate(self, genre: Genre, idiom: Idiom, path:list[Branch] = []) -> dict:
-        prompt = f''' 
+    def _parse_json_response(self, response: str) -> dict:
+        """Parse JSON from the response, handling both direct JSON and code blocks."""
+        try:
+            # Try parsing the response directly first
+            return json.loads(response)
+        except json.JSONDecodeError:
+            # If direct parsing fails, try to extract JSON from code blocks
+            json_block_regex = re.compile(r'```json\s*(.*?)\s*```', re.DOTALL)
+            match = json_block_regex.search(response)
+            if not match:
+                raise InvalidChatBotResponse(response)
+            return json.loads(match.group(1))
+
+    def generate(self, genre: Genre, idiom: Idiom, path:list[Branch] = []) -> Script:
+        prompt = f'''
         Generate a {genre.value} narrative in {idiom.value} up to a crucial decision moment. The story should be engaging, with a clear progression of events, culminating in a meaningful choice for the protagonist.
 
         The narrative should be structured into frames, each representing a moment or scene, with vivid and consistent details about characters and the environment. Each frame should precisely describe visual attributes, emotions, and postures of the characters, as well as lighting, weather, sounds, and objects in the scene, ensuring that characteristics remain uniform throughout the narrative.
 
         The exhaustive repetition of visual and narrative details must be maintained in all frames to ensure coherence in image generation. Subtle changes, such as alterations in expression, posture, or object positioning, should be explicitly described to ensure logical continuity between frames.
 
-        The response should be in JSON format and conform to the following JSON schema:
+        IMPORTANT: Keep the descriptions family-friendly and avoid any graphic violence, gore, or disturbing content. Focus on the beauty, wonder, and magic of the fantasy world.
+
+        The response should be a JSON that will be validated against the following schema:
         ```
         {{
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -71,7 +86,9 @@ class ScriptService:
 
             The detailed repetition of visual and narrative elements must be maintained in all frames to ensure coherence in image generation. Subtle changes, such as variations in expression, posture, or object displacement, should be explicitly described to ensure logical continuity between frames.
 
-            The response should be in JSON format and conform to the following JSON schema:
+            IMPORTANT: Keep the descriptions family-friendly and avoid any graphic violence, gore, or disturbing content. Focus on the beauty, wonder, and magic of the fantasy world.
+
+            The response should be a JSON that will be validated against the following schema:
             ```
             {{
                 "$schema": "http://json-schema.org/draft-07/schema#",
@@ -120,19 +137,10 @@ class ScriptService:
             '''
         response = self.chatbot.get_response(prompt)
 
-        json_block_regex = re.compile(r'```json([\s\S]*?)```')
-        match = json_block_regex.search(response)
-        if not match:
-            raise InvalidChatBotResponse(response)
-        json_response = match.group(1)
-
         try:
-            script_dict = json.loads(json_response)
-            script = Script(**script_dict)
-            return script.model_dump()
-        except json.JSONDecodeError:
-            raise InvalidChatBotResponse(response)
-        except ValidationError:
+            script_dict = self._parse_json_response(response)
+            return Script(**script_dict)
+        except (json.JSONDecodeError, ValidationError):
             raise InvalidChatBotResponse(response)
         
 class InvalidChatBotResponse(Exception):
