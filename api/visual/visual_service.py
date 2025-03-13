@@ -5,6 +5,7 @@ import requests
 
 from facade.tti import TTI
 from script.script import Script
+from visual.exceptions import ImageGenerationError
 
 class VisualService:
     def __init__(self, tti: TTI):
@@ -21,6 +22,9 @@ class VisualService:
             
         Returns:
             List[str]: List of paths to the generated image files
+            
+        Raises:
+            ImageGenerationError: If image generation or saving fails
         """
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
@@ -32,23 +36,22 @@ class VisualService:
                 # Generate image URL
                 url = self.tti.generate_image(frame.description)
                 
-                if url:
-                    # Download and save the image
-                    response = requests.get(url)
-                    response.raise_for_status()
+                if not url:
+                    raise ImageGenerationError(f"No URL generated for frame {i+1}")
+                
+                # Download and save the image
+                response = requests.get(url)
+                response.raise_for_status()
+                
+                file_path = os.path.join(output_dir, f"frame_{i+1}.png")
+                with open(file_path, "wb") as f:
+                    f.write(response.content)
                     
-                    file_path = os.path.join(output_dir, f"frame_{i+1}.png")
-                    with open(file_path, "wb") as f:
-                        f.write(response.content)
-                        
-                    image_paths.append(file_path)
-                else:
-                    self.logger.error(f"No URL generated for frame {i+1}")
-                    image_paths.append(None)
+                image_paths.append(file_path)
                     
             except Exception as e:
                 self.logger.error(f"Failed to generate/save image for frame {i+1}: {str(e)}")
-                image_paths.append(None)
+                raise ImageGenerationError(f"Failed to generate/save image for frame {i+1}: {str(e)}")
                 
         return image_paths
 

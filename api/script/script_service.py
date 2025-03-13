@@ -1,9 +1,10 @@
 import json
 import re
 import logging
+from typing import List
 
 from facade.chatbot import Chatbot
-from script.script import Script
+from script.script import Script, PathNode
 from common.genre import Genre
 from utils import validate_language
 
@@ -35,14 +36,14 @@ class ScriptService:
                 raise InvalidChatBotResponse(response)
             return json.loads(match.group(1))
 
-    def generate(self, genre: Genre, language_code: str, path:list[dict] = []) -> Script:
+    def generate(self, genre: Genre, language_code: str, path: List[PathNode] = []) -> Script:
         """
         Generate a narrative script in the specified genre and language.
         
         Args:
             genre (Genre): The genre of the narrative
             language_code (str): The ISO 639-1 or ISO 639-2 language code (e.g., 'en', 'eng', 'pt', 'por')
-            path (list[dict]): List of previous script-decision pairs
+            path (List[PathNode]): List of previous script-decision pairs in the story path
             
         Returns:
             Script: The generated script
@@ -159,7 +160,7 @@ class ScriptService:
 
             Below is the current path up to this point, listed in chronological order. Each element contains the previously generated response in the script field and the corresponding decision in the decision field:
             ```json
-            {json.dumps(path)}
+            {json.dumps([node.model_dump() for node in path])}
             ```
             '''
         response = self.chatbot.get_response(prompt)

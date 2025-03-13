@@ -4,6 +4,7 @@ import os
 
 from facade.tts import TTS
 from script.script import Script
+from audio.exceptions import AudioGenerationError
 
 class AudioService:
     def __init__(self, tts: TTS):
@@ -20,6 +21,9 @@ class AudioService:
             
         Returns:
             List[str]: List of paths to the generated audio files
+            
+        Raises:
+            AudioGenerationError: If audio generation or saving fails
         """
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
@@ -40,6 +44,6 @@ class AudioService:
                 
             except Exception as e:
                 self.logger.error(f"Failed to generate narration for frame {i+1}: {str(e)}")
-                audio_paths.append(None)
+                raise AudioGenerationError(f"Failed to generate narration for frame {i+1}: {str(e)}")
                 
         return audio_paths 

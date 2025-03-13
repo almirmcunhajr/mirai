@@ -1,6 +1,6 @@
 from enum import Enum
 
-class Genre(Enum):
+class Genre(str, Enum):
     ACTION = "action"
     ADVENTURE = "adventure"
     COMEDY = "comedy"

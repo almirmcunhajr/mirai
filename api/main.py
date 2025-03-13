@@ -1,70 +1,40 @@
 import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from facade.chatgpt import ChatGPT
-from facade.dalle import DALLE
-from facade.elevenlabs import ElevenLabs
-from facade.openai_tts import OpenAITTS
-from script.script_service import ScriptService, InvalidLanguageError
-from visual.visual_service import VisualService
-from audio.audio_service import AudioService
-from audiovisual.audiovisual_service import AudioVisualService
-from common.genre import Genre
+from story.story_router import router as story_router
+from video.video_router import router as video_router
+from config import API_HOST, API_PORT
 
-def main():
-    # Load environment variables
-    load_dotenv()
-    
-    # Get API keys from environment
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+# Load environment variables
+load_dotenv()
 
-    try:
-        # Initialize facades
-        chatbot = ChatGPT(api_key=openai_api_key)
-        dalle = DALLE(api_key=openai_api_key)
-        tts = OpenAITTS(api_key=openai_api_key)
+# Create FastAPI app
+app = FastAPI(
+    title="Mirai API",
+    description="API for generating and managing interactive stories",
+    version="1.0.0"
+)
 
-        # Initialize services
-        script_service = ScriptService(chatbot)
-        visual_service = VisualService(dalle)
-        audio_service = AudioService(tts)
-        audiovisual_service = AudioVisualService(visual_service, audio_service)
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        print("Generating initial script...")
-        # Generate initial script (fantasy story in English)
-        script = script_service.generate(
-            genre=Genre.FANTASY,
-            language_code="ja"
-        )
-        
-        print(f"\nGenerated script with {len(script.frames)} frames:")
-        print(f"Title: {script.title}")
-        for i, frame in enumerate(script.frames, 1):
-            print(f"\nFrame {i}:")
-            print(f"Narration: {frame.narration}")
-            print(f"Description: {frame.description}")
-        print("\nPossible decisions:")
-        for i, decision in enumerate(script.decisions, 1):
-            print(f"{i}. {decision}")
+# Include routers
+app.include_router(story_router)
+app.include_router(video_router)
 
-        # Create output directory
-        output_dir = "output"
-        os.makedirs(output_dir, exist_ok=True)
-
-        print("\nGenerating video...")
-        # Generate video from script
-        video_path = audiovisual_service.generate_video(script, output_dir)
-
-        if video_path:
-            print(f"\nSuccess! Video generated at: {video_path}")
-        else:
-            print("\nError: Failed to generate video")
-
-    except InvalidLanguageError as e:
-        print(f"\nError: {str(e)}")
-    except Exception as e:
-        print(f"\nError: {str(e)}")
-
-if __name__ == "__main__":
-    main() 
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to Mirai API",
+        "version": "1.0.0",
+        "host": API_HOST,
+        "port": API_PORT
+    } 
