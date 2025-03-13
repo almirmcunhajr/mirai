@@ -22,6 +22,8 @@ httpx = "*"
 black = "*"
 isort = "*"
 flake8 = "*"
+pycountry = "*"
+requests = "*"
 
 [dev-packages]
 

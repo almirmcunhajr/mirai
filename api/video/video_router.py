@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi.responses import StreamingResponse
 
 from video.video_service import VideoService
+from video.exceptions import VideoNotFoundError
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
@@ -28,7 +29,7 @@ async def stream_story_video(
     """
     try:
         return video_service.stream_video(str(story_id), str(node_id))
-    except HTTPException as e:
-        raise e
+    except VideoNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

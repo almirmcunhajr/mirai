@@ -7,7 +7,7 @@ install:
 # Start the API and database
 up:
 	docker compose up -d
-	pipenv run uvicorn main:app --reload --host $$(python -c "from config import API_HOST; print(API_HOST)") --port $$(python -c "from config import API_PORT; print(API_PORT)")
+	uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Stop the API and database
 down:

@@ -7,7 +7,8 @@ from script.script_service import ScriptService
 from script.script import PathNode
 from audiovisual.audiovisual_service import AudioVisualService
 from story.story import Story, StoryNode
-from story.exceptions import StoryGenerationError, BranchCreationError
+from story.story_repository import StoryRepository
+from story.exceptions import StoryGenerationError, BranchCreationError, StoryNotFoundError
 from common.genre import Genre
 from config import get_video_url, get_video_path
 
@@ -15,9 +16,10 @@ class StoryService:
     def __init__(self, script_service: ScriptService, audiovisual_service: AudioVisualService):
         self.script_service = script_service
         self.audiovisual_service = audiovisual_service
+        self.repository = StoryRepository()
         self.logger = logging.getLogger(__name__)
 
-    def create_story(self, genre: Genre, language_code: str = "en") -> Story:
+    async def create_story(self, genre: Genre, language_code: str = "en") -> Story:
         """
         Creates a new story with an initial branch.
         
@@ -49,17 +51,18 @@ class StoryService:
             # Generate video for the initial branch
             self._generate_video_for_node(story, root_node)
             
-            return story
+            # Save to database
+            return await self.repository.create(story)
         except Exception as e:
             self.logger.error(f"Failed to create story: {str(e)}", exc_info=True)
             raise StoryGenerationError(str(e))
 
-    def create_branch(self, story: Story, parent_node_id: UUID, decision: str, language_code: str = "en") -> Story:
+    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, language_code: str = "en") -> Story:
         """
         Creates a new branch in the story tree based on a decision.
         
         Args:
-            story (Story): The story to add the branch to
+            story_id (UUID): The story ID
             parent_node_id (UUID): ID of the parent node
             decision (str): The decision that leads to this branch
             language_code (str): The language code for the new branch
@@ -68,9 +71,15 @@ class StoryService:
             Story: The updated story with the new branch
             
         Raises:
+            StoryNotFoundError: If the story is not found
             BranchCreationError: If branch creation fails
         """
         try:
+            # Get story from database
+            story = await self.repository.get_by_id(story_id)
+            if not story:
+                raise StoryNotFoundError(f"Story with ID {story_id} not found")
+            
             # Find parent node
             parent_node = next((node for node in story.nodes if node.id == parent_node_id), None)
             if not parent_node:
@@ -101,22 +110,34 @@ class StoryService:
             # Generate video for the new branch
             self._generate_video_for_node(story, new_node)
             
-            return story
+            # Update in database
+            result = await self.repository.update(story)
+            if not result:
+                raise StoryNotFoundError(f"Story with ID {story_id} not found")
+            return result
+        except StoryNotFoundError:
+            raise
         except Exception as e:
             self.logger.error(f"Failed to create branch: {str(e)}", exc_info=True)
             raise BranchCreationError(str(e))
 
-    def get_story_tree(self, story: Story) -> dict:
+    async def get_story_tree(self, story_id: UUID) -> dict:
         """
-        Converts the story into a tree structure for frontend consumption.
-        Only includes necessary information for video playback.
+        Gets the story tree structure for frontend consumption.
         
         Args:
-            story (Story): The story to convert
+            story_id (UUID): The story ID
             
         Returns:
             dict: A tree structure containing only the necessary information for video playback
+            
+        Raises:
+            StoryNotFoundError: If the story is not found
         """
+        story = await self.repository.get_by_id(story_id)
+        if not story:
+            raise StoryNotFoundError(f"Story with ID {story_id} not found")
+            
         def build_tree(node_id: UUID) -> dict:
             node = next((n for n in story.nodes if n.id == node_id), None)
             if not node:
@@ -129,6 +150,33 @@ class StoryService:
             }
         
         return build_tree(story.root_node_id)
+
+    async def list_stories(self) -> List[Story]:
+        """
+        Lists all stories.
+        
+        Returns:
+            List[Story]: List of stories
+        """
+        return await self.repository.list_stories()
+
+    async def delete_story(self, story_id: UUID) -> bool:
+        """
+        Deletes a story.
+        
+        Args:
+            story_id (UUID): The story ID
+            
+        Returns:
+            bool: True if deleted
+            
+        Raises:
+            StoryNotFoundError: If the story is not found
+        """
+        success = await self.repository.delete(story_id)
+        if not success:
+            raise StoryNotFoundError(f"Story with ID {story_id} not found")
+        return True
 
     def _generate_video_for_node(self, story: Story, node: StoryNode) -> None:
         """

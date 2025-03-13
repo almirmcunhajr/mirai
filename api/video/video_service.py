@@ -1,9 +1,9 @@
 import os
-from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
 
 from config import get_video_path
+from video.exceptions import VideoNotFoundError
 
 class VideoService:
     def __init__(self, base_dir: str = "output/stories"):
@@ -34,12 +34,12 @@ class VideoService:
             StreamingResponse: The video stream
             
         Raises:
-            HTTPException: If the video file is not found
+            VideoNotFoundError: If the video file is not found
         """
         video_path = get_video_path(story_id, node_id)
         
         if not video_path.exists():
-            raise HTTPException(status_code=404, detail="Video not found")
+            raise VideoNotFoundError(f"Video not found for story {story_id}, node {node_id}")
             
         def iterfile():
             with open(video_path, "rb") as f:
