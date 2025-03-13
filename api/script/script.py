@@ -4,7 +4,7 @@ from typing import List, Optional
 class PathNode(BaseModel):
     """Represents a node in the story path."""
     script: 'Script'
-    decision: str
+    decision: Optional[str] = None
 
 class Frame(BaseModel):
     """Represents a single frame in the script."""

@@ -215,11 +215,13 @@ class StoryService:
             node = next((n for n in story.nodes if n.id == current_id), None)
             if not node:
                 break
-                
-            path.insert(0, PathNode(
+
+            path_node = PathNode(
                 script=node.script,
-                decision=node.decision
-            ))
+            )
+            if node.decision:
+                path_node.decision = node.decision
+            path.insert(0, path_node)
                 
             current_id = node.parent_id
             
