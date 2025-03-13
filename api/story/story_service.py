@@ -121,15 +121,15 @@ class StoryService:
             self.logger.error(f"Failed to create branch: {str(e)}", exc_info=True)
             raise BranchCreationError(str(e))
 
-    async def get_story_tree(self, story_id: UUID) -> dict:
+    async def get_story(self, story_id: UUID) -> Story:
         """
-        Gets the story tree structure for frontend consumption.
+        Gets the story.
         
         Args:
             story_id (UUID): The story ID
             
         Returns:
-            dict: A tree structure containing only the necessary information for video playback
+            Story: The story object
             
         Raises:
             StoryNotFoundError: If the story is not found
@@ -137,19 +137,7 @@ class StoryService:
         story = await self.repository.get_by_id(story_id)
         if not story:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
-            
-        def build_tree(node_id: UUID) -> dict:
-            node = next((n for n in story.nodes if n.id == node_id), None)
-            if not node:
-                return None
-                
-            return {
-                "id": str(node.id),
-                "video_url": node.video_url,
-                "children": [build_tree(child_id) for child_id in node.children]
-            }
-        
-        return build_tree(story.root_node_id)
+        return story
 
     async def list_stories(self) -> List[Story]:
         """
