@@ -57,7 +57,7 @@ class StoryService:
             self.logger.error(f"Failed to create story: {str(e)}", exc_info=True)
             raise StoryGenerationError(str(e))
 
-    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, language_code: str = "en") -> Story:
+    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, language_code: str = "pt-BR") -> Story:
         """
         Creates a new branch in the story tree based on a decision.
         

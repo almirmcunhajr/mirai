@@ -6,7 +6,7 @@ from .chatbot import Chatbot
 
 @dataclass
 class TextGenerationOptions:
-    model: str = "gpt-4"
+    model: str = "gpt-4o-mini"
 
 class ChatGPT(Chatbot):
     def __init__(self, api_key: str):

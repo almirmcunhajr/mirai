@@ -28,7 +28,11 @@ def get_story_service() -> StoryService:
     from audiovisual.audiovisual_service import AudioVisualService
     from facade.chatgpt import ChatGPT
     from facade.dalle import DALLE
-    from facade.openai_tts import OpenAITTS
+    from facade.elevenlabs import ElevenLabs
+
+    elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not elevenlabs_api_key:
+        raise ValueError("ElevenLabs API key not configured")
     
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
@@ -36,7 +40,7 @@ def get_story_service() -> StoryService:
     
     chatbot = ChatGPT(api_key=openai_api_key)
     dalle = DALLE(api_key=openai_api_key)
-    tts = OpenAITTS(api_key=openai_api_key)
+    tts = ElevenLabs(api_key=elevenlabs_api_key)
     
     script_service = ScriptService(chatbot)
     visual_service = VisualService(dalle)

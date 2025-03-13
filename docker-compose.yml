@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://admin:password123@localhost:27017/admin --quiet
+      interval: 10s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: api
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - api_data:/app/output/videos
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/mir_ai?authSource=admin
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+  
+  ui:
+    build:
+      context: ui
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    environment:
+      - VITE_API_URL=http://0.0.0.0:8000
+      - VITE_HOST=0.0.0.0
+      - VITE_PORT=5173
+
+volumes:
+  mongodb_data:
+  api_data:
