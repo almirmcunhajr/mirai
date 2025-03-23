@@ -2,13 +2,13 @@ from openai import AsyncOpenAI
 from typing import Optional
 from dataclasses import dataclass
 
-from .chatbot import Chatbot
+from .ttt import TTT
 
 @dataclass
 class TextGenerationOptions:
     model: str = "gpt-4o-mini"
 
-class ChatGPT(Chatbot):
+class OpenAI(TTT):
     def __init__(self, api_key: str):
         self.client = AsyncOpenAI(api_key=api_key)
 

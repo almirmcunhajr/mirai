@@ -3,7 +3,7 @@ import asyncio
 from typing import List
 import os
 
-from facade.tts import TTS
+from tts.tts import TTS
 from script.script import Script
 from audio.exceptions import AudioGenerationError
 

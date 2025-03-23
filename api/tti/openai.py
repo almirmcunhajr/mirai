@@ -9,7 +9,7 @@ class ImageGenerationOptions:
     n: int = 1
     model: str = "dall-e-3"
 
-class DALLE:
+class OpenAI:
     def __init__(self, api_key: str):
         self.client = AsyncOpenAI(api_key=api_key)
 

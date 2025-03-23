@@ -4,7 +4,7 @@ import aiohttp
 import os
 from typing import List
 
-from facade.tti import TTI
+from tti.tti import TTI
 from script.script import Script
 from visual.exceptions import ImageGenerationError
 

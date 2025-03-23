@@ -16,6 +16,5 @@ docker/logs/api:
 docker/logs/ui:
 	docker compose logs -f ui
 
-docker/reload:
-	docker compose down
-	docker compose up -d --build
+docker/watch:
+	docker compose watch

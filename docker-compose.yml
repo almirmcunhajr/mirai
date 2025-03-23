@@ -4,6 +4,8 @@ services:
   mongodb:
     image: mongo:latest
     restart: always
+    ports:
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -31,6 +33,13 @@ services:
       - MONGODB_URL=mongodb://admin:password123@mongodb:27017/mir_ai?authSource=admin
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+    develop:
+      watch:
+        - action: sync
+          path: ./api
+          target: /app
+        - action: rebuild
+          path: ./api/Pipfile.lock
   
   ui:
     build:
@@ -45,6 +54,15 @@ services:
       - VITE_API_URL=http://0.0.0.0:8000
       - VITE_HOST=0.0.0.0
       - VITE_PORT=5173
+    develop:
+      watch:
+        - action: sync
+          path: ./ui
+          target: /app
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: ./ui/package.json
 
 volumes:
   mongodb_data:

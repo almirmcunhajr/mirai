@@ -9,7 +9,7 @@ class OpenAITTSOptions:
     model: str = "tts-1"
     voice: str = "fable"
 
-class OpenAITTS(TTS):
+class OpenAI(TTS):
     def __init__(self, api_key: str):
         self.client = AsyncOpenAI(api_key=api_key)
 

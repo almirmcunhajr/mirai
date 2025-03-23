@@ -3,7 +3,7 @@ import re
 import logging
 from typing import List
 
-from facade.chatbot import Chatbot
+from ttt.ttt import TTT
 from script.script import Script, PathNode
 from common.genre import Genre
 from utils import validate_language
@@ -19,7 +19,7 @@ class InvalidChatBotResponse(Exception):
     pass
 
 class ScriptService:
-    def __init__(self, chatbot: Chatbot):
+    def __init__(self, chatbot: TTT):
         self.chatbot = chatbot
         self.logger = logging.getLogger(__name__)
 

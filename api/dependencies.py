@@ -2,9 +2,9 @@ from functools import lru_cache
 import os
 from fastapi import Depends
 
-from facade.chatgpt import ChatGPT
-from facade.dalle import DALLE
-from facade.elevenlabs import ElevenLabs
+from ttt.openai import OpenAI
+from tti.openai import OpenAI
+from tts.elevenlabs import ElevenLabs
 from script.script_service import ScriptService
 from visual.visual_service import VisualService
 from audio.audio_service import AudioService
@@ -27,14 +27,14 @@ def get_elevenlabs_api_key() -> str:
     return api_key
 
 @lru_cache()
-def get_chatbot(api_key: str = Depends(get_openai_api_key)) -> ChatGPT:
+def get_chatbot(api_key: str = Depends(get_openai_api_key)) -> OpenAI:
     """Get ChatGPT instance."""
-    return ChatGPT(api_key=api_key)
+    return OpenAI(api_key=api_key)
 
 @lru_cache()
-def get_dalle(api_key: str = Depends(get_openai_api_key)) -> DALLE:
+def get_dalle(api_key: str = Depends(get_openai_api_key)) -> OpenAI:
     """Get DALLE instance."""
-    return DALLE(api_key=api_key)
+    return OpenAI(api_key=api_key)
 
 @lru_cache()
 def get_elevenlabs(api_key: str = Depends(get_elevenlabs_api_key)) -> ElevenLabs:
@@ -42,12 +42,12 @@ def get_elevenlabs(api_key: str = Depends(get_elevenlabs_api_key)) -> ElevenLabs
     return ElevenLabs(api_key=api_key)
 
 @lru_cache()
-def get_script_service(chatbot: ChatGPT = Depends(get_chatbot)) -> ScriptService:
+def get_script_service(chatbot: OpenAI = Depends(get_chatbot)) -> ScriptService:
     """Get ScriptService instance."""
     return ScriptService(chatbot)
 
 @lru_cache()
-def get_visual_service(dalle: DALLE = Depends(get_dalle)) -> VisualService:
+def get_visual_service(dalle: OpenAI = Depends(get_dalle)) -> VisualService:
     """Get VisualService instance."""
     return VisualService(dalle)
 
