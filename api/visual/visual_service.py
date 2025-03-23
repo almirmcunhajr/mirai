@@ -46,7 +46,7 @@ class VisualService:
     async def generate_frames(self, script: Script, output_dir: str) -> List[str]:
         async with aiohttp.ClientSession() as session:
             tasks = [
-                self._generate_and_save_frame(frame, i, output_dir, session)
+                self._generate_and_save_frame(frame, i, output_dir)
                 for i, frame in enumerate(script.frames)
             ]
             
