@@ -7,5 +7,4 @@ class SpeechGenerationOptions(BaseModel):
 
 class TTS(Protocol):
     async def to_speech(self, text: str, options: SpeechGenerationOptions) -> bytes:
-        """Generate speech from text."""
         ... 

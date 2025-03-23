@@ -21,8 +21,6 @@ class OpenAI(TTS):
             voice=OpenAIVoices.FABLE.value
         )
     ) -> bytes:
-        """Generate speech from text using OpenAI's text-to-speech API."""
-
         response = await self.client.audio.speech.create(
             model=self.model.value,
             voice=options.voice,

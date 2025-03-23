@@ -14,17 +14,6 @@ async def stream_story_video(
     node_id: UUID,
     video_service: VideoService = Depends(get_video_service)
 ) -> StreamingResponse:
-    """
-    Streams a video for a specific story node.
-    
-    Args:
-        story_id (UUID): The story ID
-        node_id (UUID): The node ID
-        video_service (VideoService): The video service
-        
-    Returns:
-        StreamingResponse: The video stream
-    """
     try:
         return video_service.stream_video(str(story_id), str(node_id))
     except VideoNotFoundError as e:

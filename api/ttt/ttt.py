@@ -27,5 +27,4 @@ class Chat(BaseModel):
 
 class TTT(Protocol):
     async def chat(self, chat: Chat, options: ChatOptions):
-        """General purpose chat completion method."""
         ...

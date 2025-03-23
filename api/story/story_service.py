@@ -21,19 +21,6 @@ class StoryService:
         self.logger = logging.getLogger(__name__)
 
     async def create_story(self, genre: Genre, language_code: str = "pt-BR") -> Story:
-        """
-        Creates a new story with an initial branch.
-        
-        Args:
-            genre (Genre): The genre of the story
-            language_code (str): The language code for the story
-            
-        Returns:
-            Story: The created story with its initial branch
-            
-        Raises:
-            StoryGenerationError: If story generation fails
-        """
         try:
             script, chat = await self.script_service.generate(genre=genre, language_code=language_code)
             
@@ -52,22 +39,6 @@ class StoryService:
             raise StoryGenerationError(str(e))
 
     async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, language_code: str = "pt-BR") -> Story:
-        """
-        Creates a new branch in the story tree based on a decision.
-        
-        Args:
-            story_id (UUID): The story ID
-            parent_node_id (UUID): ID of the parent node
-            decision (str): The decision that leads to this branch
-            language_code (str): The language code for the new branch
-            
-        Returns:
-            Story: The updated story with the new branch
-            
-        Raises:
-            StoryNotFoundError: If the story is not found
-            BranchCreationError: If branch creation fails
-        """
         try:
             story = await self.repository.get_by_id(story_id)
             if not story:
@@ -109,61 +80,21 @@ class StoryService:
             raise BranchCreationError(str(e))
 
     async def get_story(self, story_id: UUID) -> Story:
-        """
-        Gets the story.
-        
-        Args:
-            story_id (UUID): The story ID
-            
-        Returns:
-            Story: The story object
-            
-        Raises:
-            StoryNotFoundError: If the story is not found
-        """
         story = await self.repository.get_by_id(story_id)
         if not story:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
         return story
 
     async def list_stories(self) -> List[Story]:
-        """
-        Lists all stories.
-        
-        Returns:
-            List[Story]: List of stories
-        """
         return await self.repository.list_stories()
 
     async def delete_story(self, story_id: UUID) -> bool:
-        """
-        Deletes a story.
-        
-        Args:
-            story_id (UUID): The story ID
-            
-        Returns:
-            bool: True if deleted
-            
-        Raises:
-            StoryNotFoundError: If the story is not found
-        """
         success = await self.repository.delete(story_id)
         if not success:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
         return True
 
     async def _generate_video_for_node(self, story: Story, node: StoryNode) -> None:
-        """
-        Generates a video for a story node and updates its video_url.
-        
-        Args:
-            story (Story): The story containing the node
-            node (StoryNode): The node to generate video for
-            
-        Raises:
-            VideoGenerationError: If video generation fails
-        """
         try:
             video_path = get_video_path(str(story.id), str(node.id))
 
@@ -182,16 +113,6 @@ class StoryService:
             raise e
 
     def _get_path_to_node(self, story: Story, node_id: UUID) -> List[PathNode]:
-        """
-        Gets the path from root to a specific node, including scripts and decisions.
-        
-        Args:
-            story (Story): The story to get the path from
-            node_id (UUID): ID of the target node
-            
-        Returns:
-            List[PathNode]: List of script-decision pairs representing the path
-        """
         path = []
         current_id = node_id
         

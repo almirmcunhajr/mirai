@@ -23,8 +23,6 @@ class ElevenLabs:
             output_format=ElevenLabsOutputFormat.MP3_44100_128.value
         )
     ) -> bytes:
-        """Generate speech from text using ElevenLabs."""
-
         audio_generator = self.client.text_to_speech.convert(
             text=text,
             voice_id=options.voice,

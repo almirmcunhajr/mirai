@@ -14,12 +14,10 @@ class AudioService:
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     async def _generate_and_save_narration(self, frame: Frame, i: int, output_dir: str) -> str:
-        """Generate and save a single narration."""
         try:
             async with self.semaphore:
                 audio_data = await self.tts.to_speech(frame.narration)
                 
-                # Save audio to file
                 file_path = os.path.join(output_dir, f"narration_{i+1}.mp3")
                 with open(file_path, "wb") as f:
                     f.write(audio_data)
@@ -31,29 +29,11 @@ class AudioService:
             raise AudioGenerationError(f"Failed to generate narration for frame {i+1}: {str(e)}")
 
     async def generate_narrations(self, script: Script, output_dir: str) -> List[str]:
-        """
-        Generates audio narrations for each frame in the script using text-to-speech.
-        
-        Args:
-            script (Script): The script containing frames to generate narrations for
-            output_dir (str): Directory to save the generated audio files
-            
-        Returns:
-            List[str]: List of paths to the generated audio files
-            
-        Raises:
-            AudioGenerationError: If audio generation or saving fails
-        """
-        # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
         
-        # Create tasks for parallel execution
         tasks = [
             self._generate_and_save_narration(frame, i, output_dir)
             for i, frame in enumerate(script.frames)
         ]
-        
-        # Execute all tasks concurrently and gather results
         audio_paths = await asyncio.gather(*tasks)
-        
         return audio_paths 

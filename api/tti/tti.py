@@ -8,5 +8,4 @@ class ImageGenerationOptions(BaseModel):
 
 class TTI(Protocol):
     async def to_image(self, prompt: str, options: ImageGenerationOptions) -> bytes:
-        """Generate an image from a text prompt."""
         ... 
