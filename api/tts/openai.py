@@ -1,25 +1,30 @@
+from enum import Enum
+
 from openai import AsyncOpenAI
-from typing import Optional
-from dataclasses import dataclass
 
-from .tts import TTS
+from tts.tts import TTS, SpeechGenerationOptions
 
-@dataclass
-class OpenAITTSOptions:
-    model: str = "tts-1"
-    voice: str = "fable"
+class OpenAIModel(Enum):
+    TTS_1 = "tts-1"
 
+class OpenAIVoices(Enum):
+    FABLE = "fable"
+    
 class OpenAI(TTS):
-    def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
+    def __init__(self, api_key: str = None, model: OpenAIModel = OpenAIModel.TTS_1, base_url: str = None):
+        self.model = model
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 
-    async def generate_speech(self, text: str, options: Optional[OpenAITTSOptions] = None) -> bytes:
+    async def to_speech(self, 
+        text: str, 
+        options: SpeechGenerationOptions = SpeechGenerationOptions(
+            voice=OpenAIVoices.FABLE.value
+        )
+    ) -> bytes:
         """Generate speech from text using OpenAI's text-to-speech API."""
-        if options is None:
-            options = OpenAITTSOptions()
 
         response = await self.client.audio.speech.create(
-            model=options.model,
+            model=self.model.value,
             voice=options.voice,
             input=text
         )

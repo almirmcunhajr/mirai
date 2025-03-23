@@ -1,6 +1,12 @@
-from typing import Protocol, Optional, Any
+from typing import Protocol
+from pydantic import BaseModel
+
+class ImageGenerationOptions(BaseModel):
+    size: str = None
+    quality: str = None
+    n: int = None
 
 class TTI(Protocol):
-    async def generate_image(self, prompt: str, options: Optional[Any] = None) -> str:
+    async def to_image(self, prompt: str, options: ImageGenerationOptions) -> bytes:
         """Generate an image from a text prompt."""
         ... 

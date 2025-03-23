@@ -2,6 +2,7 @@ import logging
 import asyncio
 import aiohttp
 import os
+import base64
 from typing import List
 
 from tti.tti import TTI
@@ -17,25 +18,17 @@ class VisualService:
     async def _generate_and_save_frame(self, frame, i: int, output_dir: str, session) -> str:
         """Generate and save a single frame."""
         try:
-            # Use semaphore to limit concurrent requests
             async with self.semaphore:
-                # Generate image URL
-                url = await self.tti.generate_image(frame.description)
+                base64_image = await self.tti.to_image(frame.description)
                 
-                if not url:
-                    raise ImageGenerationError(f"No URL generated for frame {i+1}")
+                if not base64_image:
+                    raise ImageGenerationError(f"No image generated for frame {i+1}")
                 
-                # Download and save the image
-                async with session.get(url) as response:
-                    response.raise_for_status()
-                    content = await response.read()
-                    
-                    file_path = os.path.join(output_dir, f"frame_{i+1}.png")
-                    with open(file_path, "wb") as f:
-                        f.write(content)
-                        
-                    return file_path
-                        
+                file_path = os.path.join(output_dir, f"frame_{i+1}.png")
+                with open(file_path, "wb") as f:
+                    f.write(base64.b64decode(base64_image))
+                
+                return file_path
         except Exception as e:
             self.logger.error(f"Failed to generate/save image for frame {i+1}: {str(e)}")
             raise ImageGenerationError(f"Failed to generate/save image for frame {i+1}: {str(e)}")
@@ -48,7 +41,6 @@ class VisualService:
                 for i, frame in enumerate(script.frames)
             ]
             
-            # Execute all tasks concurrently and gather results
             image_paths = await asyncio.gather(*tasks)
             return image_paths
 

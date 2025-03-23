@@ -1,7 +1,8 @@
 import logging
-from typing import List, Optional
+from typing import List
+import copy
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from script.script_service import ScriptService
 from script.script import PathNode
@@ -34,24 +35,17 @@ class StoryService:
             StoryGenerationError: If story generation fails
         """
         try:
-            # Generate initial script
-            script = await self.script_service.generate(genre=genre, language_code=language_code)
+            script, chat = await self.script_service.generate(genre=genre, language_code=language_code)
             
-            # Create root node
-            root_node = StoryNode(script=script)
-            
-            # Create story
+            root_node = StoryNode(script=script, chat=chat)
             story = Story(
                 title=script.title,
                 genre=genre,
                 root_node_id=root_node.id,
-                nodes=[root_node]
+                nodes=[root_node],
             )
-            
-            # Generate video for the initial branch
             await self._generate_video_for_node(story, root_node)
             
-            # Save to database
             return await self.repository.create(story)
         except Exception as e:
             self.logger.error(f"Failed to create story: {str(e)}", exc_info=True)
@@ -75,42 +69,35 @@ class StoryService:
             BranchCreationError: If branch creation fails
         """
         try:
-            # Get story from database
             story = await self.repository.get_by_id(story_id)
             if not story:
                 raise StoryNotFoundError(f"Story with ID {story_id} not found")
             
-            # Find parent node
             parent_node = next((node for node in story.nodes if node.id == parent_node_id), None)
             if not parent_node:
                 raise ValueError(f"Parent node with ID {parent_node_id} not found")
             
-            # Generate new script based on the decision
-            path = self._get_path_to_node(story, parent_node_id)
-            script = await self.script_service.generate(
+            chat = copy.deepcopy(parent_node.chat)
+            script, chat = await self.script_service.generate(
+                chat=chat,
                 genre=story.genre,
                 language_code=language_code,
-                path=path
+                decision=decision
             )
-            
-            # Create new node
             new_node = StoryNode(
                 script=script,
                 decision=decision,
-                parent_id=parent_node_id
+                parent_id=parent_node_id,
+                chat=chat
             )
-            
-            # Update parent node
+
             parent_node.children.append(new_node.id)
-            
-            # Add new node to story
+
             story.nodes.append(new_node)
-            story.updated_at = datetime.utcnow()
+            story.updated_at = datetime.now(timezone.utc)
             
-            # Generate video for the new branch
             await self._generate_video_for_node(story, new_node)
             
-            # Update in database
             result = await self.repository.update(story)
             if not result:
                 raise StoryNotFoundError(f"Story with ID {story_id} not found")
@@ -178,21 +165,18 @@ class StoryService:
             VideoGenerationError: If video generation fails
         """
         try:
-            # Get video path
             video_path = get_video_path(str(story.id), str(node.id))
+
             self.logger.info(f"Generating video for node {node.id} at path {video_path}")
-            
-            # Generate video
             await self.audiovisual_service.generate_video(
                 script=node.script,
                 output_path=str(video_path)
             )
             
-            # Set video URL
             node.video_url = get_video_url(str(story.id), str(node.id))
-            story.updated_at = datetime.utcnow()
+            story.updated_at = datetime.now(timezone.utc)
+            
             self.logger.info(f"Successfully generated video for node {node.id}")
-                
         except Exception as e:
             self.logger.error(f"Error generating video for node {node.id}: {str(e)}", exc_info=True)
             raise e
