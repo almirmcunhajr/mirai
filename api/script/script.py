@@ -5,11 +5,11 @@ class PathNode(BaseModel):
     script: 'Script'
     decision: Optional[str] = None
 
-class Frame(BaseModel):
+class Scene(BaseModel):
     narration: str
     description: str
 
 class Script(BaseModel):
     title: str
-    frames: List[Frame]
+    scenes: List[Scene]
     decisions: List[str]

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from script.script_service import ScriptService
 from script.script import PathNode
 from audiovisual.audiovisual_service import AudioVisualService
-from story.story import Story, StoryNode
+from story.story import Story, StoryNode, Style
 from story.story_repository import StoryRepository
 from story.exceptions import StoryGenerationError, BranchCreationError, StoryNotFoundError
 from common.genre import Genre
@@ -20,7 +20,7 @@ class StoryService:
         self.repository = StoryRepository()
         self.logger = logging.getLogger(__name__)
 
-    async def create_story(self, genre: Genre, language_code: str = "pt-BR") -> Story:
+    async def create_story(self, genre: Genre, language_code: str = "pt-BR", style: Style = Style.CARTOON) -> Story:
         try:
             script, chat = await self.script_service.generate(genre=genre, language_code=language_code)
             
@@ -28,6 +28,8 @@ class StoryService:
             story = Story(
                 title=script.title,
                 genre=genre,
+                style=style,
+                language=language_code,
                 root_node_id=root_node.id,
                 nodes=[root_node],
             )
@@ -38,7 +40,7 @@ class StoryService:
             self.logger.error(f"Failed to create story: {str(e)}", exc_info=True)
             raise StoryGenerationError(str(e))
 
-    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, language_code: str = "pt-BR") -> Story:
+    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str) -> Story:
         try:
             story = await self.repository.get_by_id(story_id)
             if not story:
@@ -52,7 +54,7 @@ class StoryService:
             script, chat = await self.script_service.generate(
                 chat=chat,
                 genre=story.genre,
-                language_code=language_code,
+                language_code=story.language,
                 decision=decision
             )
             new_node = StoryNode(
@@ -101,6 +103,7 @@ class StoryService:
             self.logger.info(f"Generating video for node {node.id} at path {video_path}")
             await self.audiovisual_service.generate_video(
                 script=node.script,
+                style=story.style,
                 output_path=str(video_path)
             )
             

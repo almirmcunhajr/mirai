@@ -8,6 +8,7 @@ from moviepy.video.compositing.CompositeVideoClip import concatenate_videoclips
 
 from script.script import Script
 from visual.visual_service import VisualService
+from story.story import Style
 from audio.audio_service import AudioService
 from visual.exceptions import ImageGenerationError
 from audio.exceptions import AudioGenerationError
@@ -19,7 +20,7 @@ class AudioVisualService:
         self.audio_service = audio_service
         self.logger = logging.getLogger(__name__)
 
-    async def generate_video(self, script: Script, output_path: str) -> None:
+    async def generate_video(self, script: Script, style: Style, output_path: str) -> None:
         temp_dir = tempfile.mkdtemp(dir=os.path.dirname(output_path))
         images_dir = os.path.join(temp_dir, "images")
         audio_dir = os.path.join(temp_dir, "audio")
@@ -29,7 +30,7 @@ class AudioVisualService:
         try:
             self.logger.info("Starting parallel generation of images and audio...")
             image_paths, narration_paths = await asyncio.gather(
-                self.visual_service.generate_frames(script, images_dir),
+                self.visual_service.generate_frames(script, images_dir, style),
                 self.audio_service.generate_narrations(script, audio_dir)
             )
             self.logger.info(f"Generated {len(image_paths)} images and {len(narration_paths)} audio files")

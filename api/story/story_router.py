@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from story.story_service import StoryService
 from story.story import Story
 from story.exceptions import StoryNotFoundError, BranchCreationError
+from story.story import Style
 from common.genre import Genre
 from dependencies import get_story_service
 
@@ -14,11 +15,11 @@ router = APIRouter(prefix="/stories", tags=["stories"])
 class CreateStoryRequest(BaseModel):
     genre: Genre
     language_code: Optional[str] = "pt-BR"
+    style: Optional[Style] = "cartoon"
 
 class CreateBranchRequest(BaseModel):
     parent_node_id: UUID
     decision: str
-    language_code: Optional[str] = "pt-BR"
 
 @router.post("")
 async def create_story(
@@ -27,7 +28,8 @@ async def create_story(
 ) -> Story:
     story = await story_service.create_story(
         genre=request.genre,
-        language_code=request.language_code
+        language_code=request.language_code,
+        style=request.style
     )
     return story.model_dump()
 
@@ -42,7 +44,6 @@ async def create_branch(
             story_id=story_id,
             parent_node_id=request.parent_node_id,
             decision=request.decision,
-            language_code=request.language_code
         )
         return story.model_dump()
     except StoryNotFoundError as e:

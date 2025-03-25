@@ -4,7 +4,7 @@ from typing import List
 import os
 
 from tts.tts import TTS
-from script.script import Script, Frame
+from script.script import Script, Scene
 from audio.exceptions import AudioGenerationError
 
 class AudioService:
@@ -13,7 +13,7 @@ class AudioService:
         self.logger = logging.getLogger(__name__)
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
-    async def _generate_and_save_narration(self, frame: Frame, i: int, output_dir: str) -> str:
+    async def _generate_and_save_narration(self, frame: Scene, i: int, output_dir: str) -> str:
         try:
             async with self.semaphore:
                 audio_data = await self.tts.to_speech(frame.narration)
@@ -33,7 +33,7 @@ class AudioService:
         
         tasks = [
             self._generate_and_save_narration(frame, i, output_dir)
-            for i, frame in enumerate(script.frames)
+            for i, frame in enumerate(script.scenes)
         ]
         audio_paths = await asyncio.gather(*tasks)
         return audio_paths 

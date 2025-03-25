@@ -21,22 +21,21 @@ class ScriptService:
         self.chat_options = ChatOptions(response_format=Script)
 
     def _get_script_generation_initial_message(self, genre: Genre, language: str) -> str:
-        return f'''
-        Generate a {genre.value} narrative in {language} up to a crucial decision moment. The story should be engaging, with a clear progression of events, culminating in a meaningful choice for the protagonist.
+        return f'''Generate a {genre.value} narrative in {language} up to a decision moment. The story should be engaging, with a clear development of the characters and progression of events, culminating in a choice for the protagonist.
 
-        The narrative should be structured into frames, each representing a moment or scene, with vivid and consistent details about characters and the environment. Each frame should precisely describe visual attributes, emotions, and postures of the characters, as well as lighting, weather, sounds, and objects in the scene, ensuring that characteristics remain uniform throughout the narrative.
 
-        The exhaustive repetition of visual and narrative details must be maintained in all frames to ensure coherence in image generation. Subtle changes, such as alterations in expression, posture, or object positioning, should be explicitly described to ensure logical continuity between frames.
+The narrative should be structured into scenes. Each scene should contain the narration, and the description of the characters, objects, and environment in the scene, etc. 
 
-        IMPORTANT: Keep the descriptions family-friendly and avoid any graphic violence, gore, or disturbing content.
-        '''
+IMPORTANT: The descriptions should be **SELF-CONTAINED**, that is, always describe the elements **FULLY**, **FROM SCRATCH** in a specific scene description.
+
+Make sure to keep the descriptions **family-friendly** and avoid any graphic violence, gore, disturbing content,etc. And with a **maximum length of 3500 characteres**.
+'''
     
     def _get_script_generation_decision_message(self, decision: str) -> str:
-        return f'''
-        I decided to "{decision}".
-        
-        Continue the narrative, describe the unfolding events up to the next crucial decision moment or the story's conclusion. The progression of events should be clear, maintaining immersion and ensuring a new significant choice for the protagonist or a impactful conclusion.
-        '''
+        return f'''I decided to "{decision}".
+
+Continue the narrative, describe the unfolding events up to the next crucial decision moment or the story's conclusion. The progression of events should be clear, maintaining immersion and ensuring a new significant choice for the protagonist or a impactful conclusion.
+'''
 
     async def generate(self, chat: Chat = Chat(), genre: Genre = None, language_code: str = None, decision: str = None) -> tuple[Script, Chat]:
         language = validate_language(language_code)
