@@ -1,6 +1,10 @@
-from typing import Protocol, Optional, Any
+from typing import Protocol
+from pydantic import BaseModel
+
+class SpeechGenerationOptions(BaseModel):
+    voice: str = None
+    output_format: str = None
 
 class TTS(Protocol):
-    async def generate_speech(self, text: str, options: Optional[Any] = None) -> bytes:
-        """Generate speech from text."""
+    async def to_speech(self, text: str, options: SpeechGenerationOptions) -> bytes:
         ... 

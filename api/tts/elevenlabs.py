@@ -1,31 +1,35 @@
-from typing import Optional
-from dataclasses import dataclass
+from tts.tts import SpeechGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
+from enum import Enum
 
-@dataclass
-class TTSOptions:
-    voice_id: str = "XB0fDUnXU5powFXDhCwa"  # Charlotte
-    model: str = "eleven_multilingual_v2"
-    output_format: str = "mp3_44100_128"
+class ElevenLabsModel(Enum):
+    ELEVEN_MULTILINGUAL_V2 = "eleven_multilingual_v2"
+
+class ElevenLabsVoices(Enum):
+    CHARLOTTE = "XB0fDUnXU5powFXDhCwa"
+
+class ElevenLabsOutputFormat(Enum):
+    MP3_44100_128 = "mp3_44100_128"
 
 class ElevenLabs:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: ElevenLabsModel = ElevenLabsModel.ELEVEN_MULTILINGUAL_V2):
+        self.model = model
         self.client = ElevenLabsClient(api_key=api_key)
 
-    async def generate_speech(self, text: str, options: Optional[TTSOptions] = None) -> bytes:
-        """Generate speech from text using ElevenLabs."""
-        if options is None:
-            options = TTSOptions()
-
-        # Get the async generator
+    async def to_speech(self, 
+        text: str, 
+        options: SpeechGenerationOptions = SpeechGenerationOptions(
+            voice=ElevenLabsVoices.CHARLOTTE.value, 
+            output_format=ElevenLabsOutputFormat.MP3_44100_128.value
+        )
+    ) -> bytes:
         audio_generator = self.client.text_to_speech.convert(
             text=text,
-            voice_id=options.voice_id,
-            model_id=options.model,
+            voice_id=options.voice,
+            model_id=self.model.value,
             output_format=options.output_format
         )
         
-        # Collect all chunks from the async generator
         audio_chunks = []
         async for chunk in audio_generator:
             audio_chunks.append(chunk)

@@ -207,10 +207,22 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
         throw new Error('No story loaded');
       }
 
+      // Find the current node and get the decision text for the selected targetNodeId
+      const currentNode = state.storyNodes[state.currentStory.currentNode];
+      if (!currentNode) {
+        throw new Error('Current node not found');
+      }
+
+      // Find the decision that corresponds to the nextNode targetNodeId
+      const decision = currentNode.decisions.find((d: Decision) => d.targetNodeId === nextNode);
+      if (!decision) {
+        throw new Error('Decision not found');
+      }
+
       const response = await api.createBranch(
         state.currentStory.id,
         state.currentStory.currentNode,
-        nextNode
+        decision.text
       );
 
       // Update the current node and story state
