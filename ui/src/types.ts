@@ -23,7 +23,7 @@ export interface StoryNode {
   id: string;
   content: string;
   videoUrl: string;
-  decisions: Decision[];
+  decision?: string;
   parentId: string | null;
   children: StoryNode[];
 }

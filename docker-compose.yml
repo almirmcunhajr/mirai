@@ -7,10 +7,10 @@ services:
     volumes:
       - mongodb_data:/data/db
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://admin:password123@localhost:27017/admin --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@localhost:27017/admin --quiet
       interval: 10s
       retries: 5
       start_period: 20s
@@ -28,9 +28,10 @@ services:
       mongodb:
         condition: service_healthy
     environment:
-      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/mir_ai?authSource=admin
+      - MONGODB_URL=mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongodb:27017/mir_ai?authSource=admin
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
     develop:
       watch:
         - action: sync
@@ -49,9 +50,9 @@ services:
     depends_on:
       - api
     environment:
-      - VITE_API_URL=http://0.0.0.0:8000
-      - VITE_HOST=0.0.0.0
-      - VITE_PORT=5173
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_HOST=${VITE_HOST}
+      - VITE_PORT=${VITE_PORT}
     develop:
       watch:
         - action: sync

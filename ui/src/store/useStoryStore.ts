@@ -19,7 +19,7 @@ interface StoryState {
   createStory: (genre: Genre) => Promise<void>;
   loadStory: (storyId: string) => Promise<void>;
   closeStory: () => void;
-  makeDecision: (nextNode: string) => Promise<void>;
+  makeDecision: (decision: string) => Promise<void>;
   setPlaying: (isPlaying: boolean) => void;
   setVolume: (volume: number) => void;
   setCurrentView: (view: View) => void;
@@ -74,11 +74,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
-          decisions: (node.script?.decisions || []).map((text: string, index: number) => ({
-            id: `${node.id}-decision-${index}`,
-            text,
-            targetNodeId: node.children[index] || ''
-          })),
+          decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
             const childNode = storyTree.nodes.find((n: any) => n.id === childId);
@@ -135,11 +131,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
-          decisions: (node.script?.decisions || []).map((text: string, index: number) => ({
-            id: `${node.id}-decision-${index}`,
-            text,
-            targetNodeId: node.children[index] || ''
-          })),
+          decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
             const childNode = storyTree.nodes.find((n: any) => n.id === childId);
@@ -199,7 +191,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
     });
   },
   
-  makeDecision: async (nextNode: string) => {
+  makeDecision: async (decision: string) => {
     try {
       set({ isLoading: true, error: null });
       const state = get();
@@ -207,29 +199,17 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
         throw new Error('No story loaded');
       }
 
-      // Find the current node and get the decision text for the selected targetNodeId
-      const currentNode = state.storyNodes[state.currentStory.currentNode];
-      if (!currentNode) {
-        throw new Error('Current node not found');
-      }
-
-      // Find the decision that corresponds to the nextNode targetNodeId
-      const decision = currentNode.decisions.find((d: Decision) => d.targetNodeId === nextNode);
-      if (!decision) {
-        throw new Error('Decision not found');
-      }
-
       const response = await api.createBranch(
         state.currentStory.id,
         state.currentStory.currentNode,
-        decision.text
+        decision
       );
 
       // Update the current node and story state
       set((state: StoryState) => ({
         currentStory: {
           ...state.currentStory!,
-          currentNode: nextNode
+          currentNode: response.nodes[response.nodes.length - 1].id
         },
         showDecisions: false,
         currentVideoTime: 0,
@@ -248,11 +228,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
-          decisions: (node.script?.decisions || []).map((text: string, index: number) => ({
-            id: `${node.id}-decision-${index}`,
-            text,
-            targetNodeId: node.children[index] || ''
-          })),
+          decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
             const childNode = storyTree.nodes.find((n: any) => n.id === childId);

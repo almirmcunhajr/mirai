@@ -8,7 +8,7 @@ class OpenAIModel(Enum):
     GPT_4O_MINI = "gpt-4o-mini"
 
 class OpenAI(TTT):
-    def __init__(self, api_key: str = None, model: OpenAIModel = OpenAIModel.GPT_4O_MINI, base_url: str = None):
+    def __init__(self, api_key: str = None, model: OpenAIModel = OpenAIModel.GPT_4O, base_url: str = None):
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
 

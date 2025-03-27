@@ -12,4 +12,3 @@ class Scene(BaseModel):
 class Script(BaseModel):
     title: str
     scenes: List[Scene]
-    decisions: List[str]

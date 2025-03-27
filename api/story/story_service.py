@@ -22,9 +22,9 @@ class StoryService:
 
     async def create_story(self, genre: Genre, language_code: str = "pt-BR", style: Style = Style.CARTOON) -> Story:
         try:
-            script, chat = await self.script_service.generate(genre=genre, language_code=language_code)
+            script, subjects, chat = await self.script_service.generate(genre=genre, language_code=language_code)
             
-            root_node = StoryNode(script=script, chat=chat)
+            root_node = StoryNode(script=script, chat=chat, subjects=subjects)
             story = Story(
                 title=script.title,
                 genre=genre,
@@ -33,6 +33,7 @@ class StoryService:
                 root_node_id=root_node.id,
                 nodes=[root_node],
             )
+
             await self._generate_video_for_node(story, root_node)
             
             return await self.repository.create(story)
@@ -51,9 +52,10 @@ class StoryService:
                 raise ValueError(f"Parent node with ID {parent_node_id} not found")
             
             chat = copy.deepcopy(parent_node.chat)
-            script, chat = await self.script_service.generate(
+            script, subjects, chat = await self.script_service.generate(
                 chat=chat,
                 genre=story.genre,
+                subjects=parent_node.subjects,
                 language_code=story.language,
                 decision=decision
             )
@@ -61,7 +63,8 @@ class StoryService:
                 script=script,
                 decision=decision,
                 parent_id=parent_node_id,
-                chat=chat
+                chat=chat,
+                subjects=subjects
             )
 
             parent_node.children.append(new_node.id)

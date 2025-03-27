@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Play, Pause, Volume2, VolumeX, Split, Menu, Home, PlusCircle } from 'lucide-react';
 import { useStoryStore } from '../store/useStoryStore';
 import { ApiService } from '../services/api';
@@ -12,6 +12,7 @@ export const StoryPlayer: React.FC = () => {
   const [showTree, setShowTree] = React.useState(false);
   const [showSidebar, setShowSidebar] = React.useState(false);
   const [showControls, setShowControls] = React.useState(true);
+  const [userDecision, setUserDecision] = useState('');
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const {
     isPlaying,
@@ -115,24 +116,22 @@ export const StoryPlayer: React.FC = () => {
     setVideoProgress(newTime, videoDuration);
   };
 
-  const handleDecision = async (nextNode: string) => {
+  const handleDecision = async () => {
+    if (!userDecision.trim()) {
+      return;
+    }
+
     try {
-      // Check if the branch already exists
-      if (storyNodes[nextNode]) {
-        // If it exists, just navigate to it
-        navigateToNode(nextNode);
-        setVideoProgress(0, videoDuration);
-        setShowDecisions(false); // Hide decisions until video ends
-        if (videoRef.current) {
-          videoRef.current.currentTime = 0;
-          videoRef.current.onloadeddata = () => {
-            setPlaying(true);
-            videoRef.current?.play();
-          };
-        }
-      } else {
-        // If it doesn't exist, create a new branch
-        await makeDecision(nextNode);
+      // Create a new branch with the user's decision
+      await makeDecision(userDecision.trim());
+      setUserDecision(''); // Clear the input after submission
+      setShowDecisions(false); // Hide decisions until video ends
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.onloadeddata = () => {
+          setPlaying(true);
+          videoRef.current?.play();
+        };
       }
     } catch (error) {
       // Error is handled by the store
@@ -236,21 +235,30 @@ export const StoryPlayer: React.FC = () => {
           <div className="bg-gray-900 p-6 rounded-lg max-w-lg w-full mx-4">
             <h3 className="text-white text-xl font-semibold mb-4">What will you do?</h3>
             <div className="space-y-3">
-              {currentNode?.decisions.map((decision) => (
-                <button
-                  key={decision.id}
-                  onClick={() => handleDecision(decision.targetNodeId)}
-                  disabled={isLoading}
-                  className={clsx(
-                    "w-full p-3 text-white rounded-lg transition",
-                    isLoading
-                      ? "bg-gray-600 cursor-not-allowed"
-                      : "bg-red-600 hover:bg-red-700"
-                  )}
-                >
-                  {decision.text}
-                </button>
-              ))}
+              <input
+                type="text"
+                value={userDecision}
+                onChange={(e) => setUserDecision(e.target.value)}
+                placeholder="Enter your decision..."
+                className="w-full p-3 text-white bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleDecision();
+                  }
+                }}
+              />
+              <button
+                onClick={handleDecision}
+                disabled={isLoading || !userDecision.trim()}
+                className={clsx(
+                  "w-full p-3 text-white rounded-lg transition",
+                  isLoading || !userDecision.trim()
+                    ? "bg-gray-600 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                )}
+              >
+                Continue
+              </button>
             </div>
           </div>
         </div>

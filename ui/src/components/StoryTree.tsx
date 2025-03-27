@@ -16,17 +16,8 @@ export const StoryTree: React.FC<StoryTreeProps> = ({ nodes, currentNodeId, onNo
 
     const isCurrentNode = nodeId === currentNodeId;
 
-    // Find the decision text from parent node's decisions
-    let decisionText = 'Start';
-    if (node.parentId) {
-      const parentNode = nodes[node.parentId];
-      if (parentNode) {
-        const decision = parentNode.decisions.find(d => d.targetNodeId === nodeId);
-        if (decision) {
-          decisionText = decision.text;
-        }
-      }
-    }
+    // Find the decision text from parent node's decision
+    let decisionText = node.decision || 'Start';
 
     return {
       name: '',  // We'll render text in the custom node component

@@ -13,9 +13,14 @@ class Style(StrEnum):
     REALISTIC = "realistic"
     ANIME = "anime"
 
+class Subject(BaseModel):
+    name: str
+    description: str
+
 class StoryNode(BaseModel):
     """Represents a node in the story tree."""
     id: UUID = Field(default_factory=uuid4)
+    subjects: List[Subject] = []
     script: Script
     decision: Optional[str] = None
     parent_id: Optional[UUID] = None
