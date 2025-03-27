@@ -38,7 +38,7 @@ Make sure to keep the descriptions have a *maximum length of 3500 characteres*, 
 
 The narration should not include any ids, it will be used later by a text to speech service to create an audio for the narration.
 
-IMPORTANT: **Make sure to reference all characters, objects, places, etc. in all scenes.**
+IMPORTANT: **Make sure to reference all characters, objects, places, etc. in all scenes.** And make sure to decribe the characters in great details, including a dense visual description of the body, face, hair, clothes, etc.
 
 # Descriptions examples
 ## Description example for scene 1:
