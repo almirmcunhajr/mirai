@@ -15,7 +15,7 @@ router = APIRouter(prefix="/stories", tags=["stories"])
 class CreateStoryRequest(BaseModel):
     genre: Genre
     language_code: Optional[str] = "pt-BR"
-    style: Optional[Style] = "cartoon"
+    style: Optional[Style] = "anime"
 
 class CreateBranchRequest(BaseModel):
     parent_node_id: UUID

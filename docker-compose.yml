@@ -31,6 +31,7 @@ services:
       - MONGODB_URL=mongodb://${MONGODB_USERNAME}:${MONGODB_PASSWORD}@mongodb:27017/mir_ai?authSource=admin
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY}
       - SECRET_KEY=${SECRET_KEY}
     develop:
       watch:

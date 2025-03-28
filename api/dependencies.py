@@ -5,6 +5,7 @@ from fastapi import Depends
 from ttt.openai import OpenAI as OpenAITTT
 from tti.openai import OpenAI as OpenAITTI
 from tts.openai import OpenAI as OpenAITTS
+from tti.together import Together as TogetherTTI
 from tts.tts import TTS
 from tti.tti import TTI
 from ttt.ttt import TTT
@@ -20,6 +21,12 @@ def get_openai_api_key() -> str:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OpenAI API key not configured")
+    return api_key
+
+def get_together_api_key() -> str:
+    api_key = os.getenv("TOGETHER_API_KEY")
+    if not api_key:
+        raise ValueError("Together API key not configured")
     return api_key
 
 def get_elevenlabs_api_key() -> str:
@@ -41,6 +48,10 @@ def get_openai_tti(api_key: str = Depends(get_openai_api_key)) -> OpenAITTI:
     return OpenAITTI(api_key=api_key)
 
 @lru_cache()
+def get_together_tti(api_key: str = Depends(get_together_api_key)) -> TogetherTTI:
+    return TogetherTTI(api_key=api_key)
+
+@lru_cache()
 def get_elevenlabs_tts(api_key: str = Depends(get_elevenlabs_api_key)) -> ElevenLabs:
     return ElevenLabs(api_key=api_key)
 
@@ -49,7 +60,7 @@ def get_script_service(ttt: TTT = Depends(get_openai_ttt)) -> ScriptService:
     return ScriptService(ttt)
 
 @lru_cache()
-def get_visual_service(tti: TTI = Depends(get_openai_tti)) -> VisualService:
+def get_visual_service(tti: TTI = Depends(get_together_tti)) -> VisualService:
     return VisualService(tti)
 
 @lru_cache()

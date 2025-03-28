@@ -17,13 +17,8 @@ class VisualService:
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     def _get_image_generation_prompt(self, scene: Scene, style: Style) -> str:
-        return f'''Generate a scene in **{style}** style. for the following narrative:
-{scene.narration}
-
-The detailed description of the image is:
+        return f'''Generate a scene in **{style}** style with the following description:
 {scene.description}
-
-Make sure the characteres are acting with the narrative. That is, do not look at the camera.
 '''
 
     async def _generate_and_save_frame(self, scene: Scene, image_file_path: str, style: Style) -> str:
