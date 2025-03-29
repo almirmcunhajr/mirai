@@ -12,6 +12,7 @@ from story.story_repository import StoryRepository
 from story.exceptions import StoryGenerationError, BranchCreationError, StoryNotFoundError
 from common.genre import Genre
 from config import get_video_url, get_video_path
+from ttt.ttt import Chat
 
 class StoryService:
     def __init__(self, script_service: ScriptService, audiovisual_service: AudioVisualService):
@@ -20,11 +21,12 @@ class StoryService:
         self.repository = StoryRepository()
         self.logger = logging.getLogger(__name__)
 
-    async def create_story(self, genre: Genre, language_code: str = "pt-BR", style: Style = Style.CARTOON) -> Story:
+    async def create_story(self, genre: Genre, language_code: str, style: Style) -> Story:
         try:
-            script, subjects, chat = await self.script_service.generate(genre=genre, language_code=language_code)
-            
-            root_node = StoryNode(script=script, chat=chat, subjects=subjects)
+            chat = Chat()
+            script = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
+
+            root_node = StoryNode(script=script, chat=chat)
             story = Story(
                 title=script.title,
                 genre=genre,
@@ -52,19 +54,18 @@ class StoryService:
                 raise ValueError(f"Parent node with ID {parent_node_id} not found")
             
             chat = copy.deepcopy(parent_node.chat)
-            script, subjects, chat = await self.script_service.generate(
+            script = await self.script_service.generate(
                 chat=chat,
                 genre=story.genre,
-                subjects=parent_node.subjects,
                 language_code=story.language,
                 decision=decision
             )
+
             new_node = StoryNode(
                 script=script,
                 decision=decision,
                 parent_id=parent_node_id,
-                chat=chat,
-                subjects=subjects
+                chat=chat
             )
 
             parent_node.children.append(new_node.id)
@@ -105,7 +106,7 @@ class StoryService:
 
             self.logger.info(f"Generating video for node {node.id} at path {video_path}")
             await self.audiovisual_service.generate_video(
-                script=node.script,
+                story_node=node,
                 style=story.style,
                 output_path=str(video_path)
             )

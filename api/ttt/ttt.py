@@ -1,19 +1,19 @@
-from typing import Protocol, Any
-from pydantic import BaseModel
+from typing import Protocol, Type
 from enum import StrEnum
+from common.base_model_no_extra import BaseModelNoExtra
 
-class ChatOptions(BaseModel):
-    response_format: Any = None
+class ChatOptions(BaseModelNoExtra):
+    response_format: Type[BaseModelNoExtra] = None
 
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
 
-class ChatMessage(BaseModel):
+class ChatMessage(BaseModelNoExtra):
     role: ChatMessageRole
     content: str
 
-class Chat(BaseModel):
+class Chat(BaseModelNoExtra):
     messages: list[ChatMessage] = []
 
     def add_user_message(self, message: str):

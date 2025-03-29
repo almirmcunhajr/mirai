@@ -1,12 +1,12 @@
+from enum import Enum
+
 from tts.tts import SpeechGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
-from enum import Enum
+from elevenlabs.types import Voice
+from script.script import Character
 
 class ElevenLabsModel(Enum):
     ELEVEN_MULTILINGUAL_V2 = "eleven_multilingual_v2"
-
-class ElevenLabsVoices(Enum):
-    CHARLOTTE = "XB0fDUnXU5powFXDhCwa"
 
 class ElevenLabsOutputFormat(Enum):
     MP3_44100_128 = "mp3_44100_128"
@@ -19,7 +19,6 @@ class ElevenLabs:
     async def to_speech(self, 
         text: str, 
         options: SpeechGenerationOptions = SpeechGenerationOptions(
-            voice=ElevenLabsVoices.CHARLOTTE.value, 
             output_format=ElevenLabsOutputFormat.MP3_44100_128.value
         )
     ) -> bytes:
@@ -35,3 +34,44 @@ class ElevenLabs:
             audio_chunks.append(chunk)
         
         return b''.join(audio_chunks) 
+    
+    def _get_voice_age(self, character: Character) -> str:
+        if character.age <= 29:
+            return "young"
+        if character.age >= 30 and character.age <= 59:
+            return "middle-aged"
+        if character.age >= 60:
+            return "old"
+    
+    def _get_voice_gender(self, character: Character) -> str:
+        if character.gender == "male":
+            return "male"
+        if character.gender == "female":
+            return "female"
+        return "neutral"
+    
+    async def get_voice(self, language: str, used_voices: list[str] = [], character: Character = None) -> str:
+        if not character:
+            return "pFZP5JQG7iQjIQuC4Bku" # Lily
+
+        response = await self.client.voices.search(page_size=100)
+        voice_id = None
+        while True:
+            for voice in response.voices:
+                if voice.voice_id in used_voices:
+                    continue
+                if voice.labels['gender'] != self._get_voice_gender(character):
+                    continue
+                if not voice_id:
+                    voice_id = voice.voice_id
+                if 'language' not in voice.labels or voice.labels['language'] == language.split('-')[0]:
+                    voice_id = voice.voice_id
+                if voice.labels['age'] == self._get_voice_age(character):
+                    return voice.voice_id
+            if not response.has_more:
+                break
+            response = await self.client.voices.search(page_size=100, next_page_token=response.next_page_token)
+
+        if not voice_id:
+            raise Exception("No voice found")
+        return voice_id

@@ -1,23 +1,23 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel
 
 from story.story_service import StoryService
 from story.story import Story
 from story.exceptions import StoryNotFoundError, BranchCreationError
 from story.story import Style
 from common.genre import Genre
+from common.base_model_no_extra import BaseModelNoExtra
 from dependencies import get_story_service
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
-class CreateStoryRequest(BaseModel):
+class CreateStoryRequest(BaseModelNoExtra):
     genre: Genre
     language_code: Optional[str] = "pt-BR"
     style: Optional[Style] = "anime"
 
-class CreateBranchRequest(BaseModel):
+class CreateBranchRequest(BaseModelNoExtra):
     parent_node_id: UUID
     decision: str
 

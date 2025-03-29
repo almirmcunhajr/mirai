@@ -3,12 +3,10 @@ from enum import Enum
 from openai import AsyncOpenAI
 
 from tts.tts import TTS, SpeechGenerationOptions
+from script.script import Character
 
 class OpenAIModel(Enum):
     TTS_1 = "tts-1"
-
-class OpenAIVoices(Enum):
-    FABLE = "fable"
     
 class OpenAI(TTS):
     def __init__(self, api_key: str = None, model: OpenAIModel = OpenAIModel.TTS_1, base_url: str = None):
@@ -17,9 +15,7 @@ class OpenAI(TTS):
 
     async def to_speech(self, 
         text: str, 
-        options: SpeechGenerationOptions = SpeechGenerationOptions(
-            voice=OpenAIVoices.FABLE.value
-        )
+        options: SpeechGenerationOptions
     ) -> bytes:
         response = await self.client.audio.speech.create(
             model=self.model.value,
@@ -27,3 +23,6 @@ class OpenAI(TTS):
             input=text
         )
         return response.content 
+    
+    def get_voice(self, language: str, used_voices: list[str] = [],character: Character = None) -> str:
+        return 'fable'

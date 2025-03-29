@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from common.base_model_no_extra import BaseModelNoExtra 
 
-class TranscriptionWord(BaseModel):
+class TranscriptionWord(BaseModelNoExtra):
     text: str
     start: float
     end: float

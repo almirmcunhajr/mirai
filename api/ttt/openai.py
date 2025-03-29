@@ -23,14 +23,20 @@ class OpenAI(TTT):
     
     async def chat(self, chat: Chat, options: ChatOptions = None):
         if options and options.response_format:
-            completion = await self.client.beta.chat.completions.parse(
+            response = await self.client.responses.create(
                 model=self.model.value,
-                messages=self._get_messages(chat),
-                response_format=options.response_format,
+                input=self._get_messages(chat),
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": options.response_format.__name__,
+                        "schema": options.response_format.model_json_schema()
+                    }
+                }
             )
-            return completion.choices[0].message.parsed
-        completion = await self.client.chat.completions.create(
+            return options.response_format.model_validate_json(response.output_text)
+        response = await self.client.responses.create(
             model=self.model.value,
-            messages=self._get_messages(chat),
+            input=self._get_messages(chat),
         )
-        return completion.choices[0].message.content
+        return response.output_text

@@ -8,7 +8,7 @@ class TogetherModel(Enum):
     FLUX_1_DEV = "black-forest-labs/FLUX.1-dev"
 
 class Together:
-    def __init__(self, api_key: str = None, model: TogetherModel = TogetherModel.FLUX_1_DEV, base_url: str = None):
+    def __init__(self, api_key: str = None, model: TogetherModel = TogetherModel.FLUX_1_SCHNELL_FREE, base_url: str = None):
         self.model = model
         self.client = TogetherClient(api_key=api_key, base_url=base_url)
     
@@ -20,7 +20,7 @@ class Together:
             height=options.height,
             n=1,
             guidance_scale=3.5,
-            num_inference_steps=28,
+            steps=4,
             response_format='base64'
         )
         return response.data[0].b64_json

@@ -1,8 +1,7 @@
 from typing import Protocol
-from pydantic import BaseModel
-from enum import Enum
+from common.base_model_no_extra import BaseModelNoExtra
 
-class ImageGenerationOptions(BaseModel):
+class ImageGenerationOptions(BaseModelNoExtra):
     width: int = 1792
     height: int = 1024
 

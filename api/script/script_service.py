@@ -1,12 +1,9 @@
 import logging
-from pydantic import BaseModel
-import re
-from functools import partial
 
 from ttt.ttt import TTT, ChatOptions, Chat
-from script.script import Script, Scene
-from story.story import Subject
+from script.script import Script, Scene, Ending, Character
 from common.genre import Genre
+from common.base_model_no_extra import BaseModelNoExtra
 from utils import validate_language
 
 
@@ -18,100 +15,116 @@ class InvalidChatBotResponse(Exception):
     """Raised when the chatbot response is invalid."""
     pass
 
-class ScriptResponse(BaseModel):
+class ScriptResponse(BaseModelNoExtra):
     title: str
+    genre: Genre
+    language: str
     scenes: list[Scene]
-    references: list[Subject]
+    ending: Ending
+
+class CharacterResponse(BaseModelNoExtra):
+    name: str
+    age: int
+    gender: str
+
+class CharactersResponse(BaseModelNoExtra):
+    characters: list[CharacterResponse]
 
 class ScriptService:
     def __init__(self, ttt: TTT):
         self.ttt = ttt
         self.logger = logging.getLogger(__name__)
-        self.chat_options = ChatOptions(response_format=ScriptResponse)
 
-    def _get_script_generation_initial_message(self, genre: Genre, language: str) -> str:
-        return f'''Generate a {genre.value} narrative in {language} up to a decision moment. The story should be engaging, with a clear development of the characters and progression of events, culminating in a choice for the protagonist.
-
-The narrative should be structured into scenes. Each scene should contain the narration of the scene, and detailed **visual aspects** and **acting** in the description. 
-In all scenes description make sure to reference all characters, objects, places, etc. using only an id in the format #<number>, starting from 1, and incrementing by 1.
-Also, return a list of the references, with their detailed visual aspects and their name.
-
-Make sure the descriptions have a *maximum length of 3500 characteres*, and are **family-friendly**, avoiding any graphic violence, gore, disturbing content,etc.
-
-The narration should not include any ids, it will be used later by a text to speech service to create an audio for the narration.
-
-IMPORTANT: Make sure to **reference all characters, objects, places, etc. in all scenes**. And make sure to decribe the characters in great details, including a dense visual description of the body, face, hair, clothes, etc.
-
-# Descriptions examples
-## Description example for scene 1:
-The scene starts in #0 (In this example, 0 is a place, and you should describe 0 in details in the references list). #1 (In this example, #1 is a character, and you should describe #1 in details in the references list) is doing something and got #2 (In this example, #2 is an object, and you should describe #2 in details in the references list)...
-
-## Description example for scene 2:
-In #0 (In this example, is the same place referenced by 0 in the previous scene), #1 is doing another thing, and meet #3 (In this example, #3 is another character, and you should describe #3 in details in the references list)...
-
-## Description example for scene 3:
-In #4 (In this example, #4 is another place, and you should describe #4 in details in the references list)...
-
-...
-## Description example for scene N:
-...
+    def _get_narrative_generation_message(self, genre: Genre, language: str) -> str:
+        return f'''Generate a {genre.value} narrative in {language} up to a decision moment. 
+The story should be engaging, with a clear development of the characters and progression of events, culminating in a choice for the protagonist.
 '''
-    def _get_already_created_references_message(self, references: list[Subject]) -> str:
-        if len(references) == 0:
-            return ''
-        return f'''\nAttend to the following already created references:
-{'\n'.join([f'#{i+1}:\nName:{reference.name}\nDescription:{reference.description}\n' for i, reference in enumerate(references)])}
+    
+    def _get_script_generation_message(self) -> str:
+        return f'''Convert the story into a structured JSON document, formatted as a cinematic screenplay.
+
+I will use this output with two models:
+
+A text-to-image model like DALL·E, which does not retain context between prompts
+
+A text-to-speech and video generation system, which must follow the exact order of narration and dialogue lines
+
+Please follow these instructions **carefully**:
+
+- Each scene must include a visual_description field that is a single, complete, and self-contained string, suitable for generating one image.
+
+- ⚠️ VERY IMPORTANT: **DO NOT** use **PRONOUNS**, **CHARACTER NAMES**, or **VAGUE REFERENCES** in the visual_description. Always **FULLY DESCRIBE**:
+    Characters: **ALWAYS** include age, gender, skin tone, hair type and color, clothing (style and color), facial expression, posture, and any distinctive visual features (e.g., glasses, scars).
+    Locations: describe **FULLY** in **EVERY** scene, even if previously shown.
+
+- Each scene must also include a lines array representing all spoken and narrated content in sequential order. Each item in the array must follow this structure:
+    - type: indicates whether the line is a "dialogue" or a "narration".
+    - character: the speaker's name; use "Narrator" only for general narration (not internal monologue).
+    - line: the actual spoken or narrated content.
+
+All dialogue and narration lines must be written in natural, expressive language, using names, pronouns, emotions, and realistic tone — as in a real screenplay.
+
+The final JSON must include:
+- title, genre, language
+- A list of scenes, each containing:
+    - id: e.g., "1"
+    - visual_description: one complete, self-contained string
+    - lines: ordered array of narration and dialogue objects
+- An ending object with:
+    - type: "decision" (for decision points) or "end" (for story conclusions)
+    - description: a narration-ready summary of the final moment or situation
+        '''
+    def _get_characteres_message(self) -> str:
+        return f'''Based on the story or script, extract the list of characters and return them as a JSON object.
+
+The value for each character must be an object containing:
+    - name: the character's name
+    - age: approximate age (as an integer)
+    - gender: "male", "female", or "other" if applicable
+
+⚠️ The character names used as keys must **exactly match** the names used in the "character" fields inside the lines array of the script (both for dialogue and narration). This ensures voice-matching works properly later.
+
+Only include characters who speak or narrate in the script.
+Do not include "Narrator" — it is a system voice, not a character.
 '''
+    
+    def _get_decision_message(self, decision: str) -> str:
+        return f'''I decided to "{decision}".'''
+    
+    async def generate(self, chat: Chat, genre: Genre = None, language_code: str = None, decision: str = None) -> Script:
+        if language_code and not validate_language(language_code):
+            raise InvalidLanguageError(f"Invalid language code: {language_code}")
+        
+        if not decision:
+            message = self._get_narrative_generation_message(genre, language_code)
+            chat.add_user_message(message)
 
-    def _get_script_generation_decision_message(self, decision: str, references: list[Subject]) -> str:
-        return f'''I decided to "{decision}".
+            chat_options = ChatOptions()
+            narrative = await self.ttt.chat(chat, chat_options)
+            chat.add_assistant_response(narrative)
 
-Continue the narrative, describe the unfolding events up to the next decision moment or the story's conclusion. The progression of events should be clear, maintaining immersion and ensuring a new choice for the protagonist or a impactful conclusion.
+            message = self._get_script_generation_message()
+            chat.add_user_message(message)
+        else:
+            message = self._get_decision_message(decision)
+            chat.add_user_message(message)
 
-Continue the references from the previous scenes. That is, if the previous scenes generated references #0, #1, #2, #3, #4, then the new created references should continue from #5, and you should return references from #5 in the list. You can still reference the past references, but you should not return them in the list.
-{self._get_already_created_references_message(references)}
-# Descriptions examples
-## Description example for scene N + 1:
-In #0 (In this example, #0 is reference from the last responses, and you should not return it in the list), #5 is doing something (In this example, #5 is a new reference, and you should describe #5 in details in the references list)...
-...
-'''
+        chat_options = ChatOptions(response_format=ScriptResponse)
+        script_response: ScriptResponse = await self.ttt.chat(chat, chat_options)
+        chat.add_assistant_response(script_response.model_dump_json())
 
-    def _parse_script_response(self, response: ScriptResponse) -> Script:
-        def replace_id(substituted: dict[int, int], match):
-            id = int(match.group(1))-1
-            reference = response.references[id]
-            if id not in substituted:
-                sub = f'{reference.name} ({reference.description})'
-            else:
-                sub = reference.name
-            substituted[id] = 1
-            return sub
+        message = self._get_characteres_message()
+        chat.add_user_message(message)
 
-        for scene in response.scenes:
-            substituted = {}
-            scene.description = re.sub(r'#(\d+)', partial(replace_id, substituted), scene.description)
+        chat_options = ChatOptions(response_format=CharactersResponse)
+        characters_response: CharactersResponse = await self.ttt.chat(chat, chat_options)
+        chat.add_assistant_response(characters_response.model_dump_json())
 
         return Script(
-            title=response.title,
-            scenes=response.scenes,
-            subjects=response.references
+            title=script_response.title,
+            genre=script_response.genre,
+            language=script_response.language,
+            scenes=script_response.scenes,
+            characters=[Character(name=character.name, age=character.age, gender=character.gender) for character in characters_response.characters],
+            ending=script_response.ending
         )
-    
-    async def generate(self, chat: Chat = Chat(), subjects: list[Subject] = [], genre: Genre = None, language_code: str = None, decision: str = None) -> tuple[Script, list[Subject], Chat]:
-        language = validate_language(language_code)
-        if not language:
-            raise InvalidLanguageError(f"Invalid language code: {language_code}")
-
-        message = self._get_script_generation_initial_message(genre, language)
-        if decision:
-            message = self._get_script_generation_decision_message(decision, subjects)
-
-        chat.add_user_message(message)
-        response: ScriptResponse = await self.ttt.chat(chat, self.chat_options)
-        chat.add_assistant_response(response.model_dump_json())
-
-        response.references = subjects + response.references
-        
-        script = self._parse_script_response(response)
-
-        return script, response.references, chat

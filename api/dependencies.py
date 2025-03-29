@@ -64,7 +64,7 @@ def get_visual_service(tti: TTI = Depends(get_together_tti)) -> VisualService:
     return VisualService(tti)
 
 @lru_cache()
-def get_audio_service(tts: TTS = Depends(get_openai_tts)) -> AudioService:
+def get_audio_service(tts: TTS = Depends(get_elevenlabs_tts)) -> AudioService:
     return AudioService(tts)
 
 @lru_cache()
