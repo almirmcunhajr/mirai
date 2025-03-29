@@ -37,42 +37,76 @@ class ScriptService:
 
     def _get_narrative_generation_message(self, genre: Genre, language: str) -> str:
         return f'''Generate a {genre.value} narrative in {language} up to a decision moment. 
-The story should be engaging, with a clear development of the characters and progression of events, culminating in a choice for the protagonist.
+ The story should be engaging, with a clear development of the characters progression of events, and complex dialogs, culminating in a choice for the protagonist.
 '''
     
     def _get_script_generation_message(self) -> str:
         return f'''Convert the story into a structured JSON document, formatted as a cinematic screenplay.
 
-I will use this output with two models:
+This output will be used with two separate AI systems:
 
-A text-to-image model like DALL·E, which does not retain context between prompts
+1. A **text-to-image model** like DALL·E, which does **not retain context between prompts**.
+2. A **text-to-speech and video generation system**, which must follow the **exact order** of narration and dialogue.
 
-A text-to-speech and video generation system, which must follow the exact order of narration and dialogue lines
+---
 
-Please follow these instructions **carefully**:
+## ⚠️ Follow these instructions with absolute precision:
 
-- Each scene must include a visual_description field that is a single, complete, and self-contained string, suitable for generating one image.
+### 🎬 Output format:
 
-- ⚠️ VERY IMPORTANT: **DO NOT** use **PRONOUNS**, **CHARACTER NAMES**, or **VAGUE REFERENCES** in the visual_description. Always **FULLY DESCRIBE**:
-    Characters: **ALWAYS** include age, gender, skin tone, hair type and color, clothing (style and color), facial expression, posture, and any distinctive visual features (e.g., glasses, scars).
-    Locations: describe **FULLY** in **EVERY** scene, even if previously shown.
+Return a **valid JSON object** with the following structure:
 
-- Each scene must also include a lines array representing all spoken and narrated content in sequential order. Each item in the array must follow this structure:
-    - type: indicates whether the line is a "dialogue" or a "narration".
-    - character: the speaker's name; use "Narrator" only for general narration (not internal monologue).
-    - line: the actual spoken or narrated content.
+- `title`: string  
+- `genre`: string  
+- `language`: string (e.g., "Portuguese" or "English")  
+- `scenes`: array of scene objects, each containing:
+  - `id`: string (e.g., `"1"`, `"2"`)
+  - `visual_description`: string — see strict rules below
+  - `lines`: array of objects with:
+    - `type`: `"dialogue"` or `"narration"`
+    - `character`: name of the speaker (use `"Narrator"` only for general narration)
+    - `line`: the actual spoken or narrated content
+- `ending`: object with:
+  - `type`: `"decision"` or `"end"`
+  - `description`: a narration-ready summary of the final moment
 
-All dialogue and narration lines must be written in natural, expressive language, using names, pronouns, emotions, and realistic tone — as in a real screenplay.
+---
 
-The final JSON must include:
-- title, genre, language
-- A list of scenes, each containing:
-    - id: e.g., "1"
-    - visual_description: one complete, self-contained string
-    - lines: ordered array of narration and dialogue objects
-- An ending object with:
-    - type: "decision" (for decision points) or "end" (for story conclusions)
-    - description: a narration-ready summary of the final moment or situation
+### 📸 `visual_description` rules (STRICT AND NON-NEGOTIABLE):
+
+This field must be a **single, complete, and self-contained string**, describing the scene **as if no prior context exists**.
+
+#### ❌ NEVER USE:
+- Pronouns (e.g., “he”, “she”, “they”, “his”, “her”)
+- Character names (e.g., “Lucas”, “Maria”)
+- Vague references (e.g., “the young woman”, “the couple”, “the house”, “the same violin player”)
+
+#### ✅ ALWAYS:
+- Fully re-describe **every character**, **every location**, and **every object**, **from scratch**, in **every scene**, even if they have appeared before.
+
+---
+
+#### Character descriptions must include:
+> Age range, gender, skin tone, hair type and color, facial expression, posture, clothing (style and color), and any distinctive features (e.g., scars, glasses, tattoos)
+
+#### Location descriptions must include:
+> Interior or exterior, architecture, visible furniture or objects, lighting, time of day, weather (if applicable), atmosphere and mood
+
+> 💡 Each `visual_description` must stand alone — it should be enough to generate a full image without relying on any previous scenes.
+
+---
+
+### 🎭 `lines` rules:
+
+Each scene must include an array called `lines`, in **sequential order**, containing both dialogue and narration.
+
+Each line must be an object with:
+- `type`: `"dialogue"` or `"narration"`
+- `character`: speaker's name  
+  - Use `"Narrator"` only for general exposition or scene-setting narration
+- `line`: the actual spoken or narrated content, written in **natural, expressive, screenplay-style language**
+
+✅ You **can and should** use names, pronouns, emotions, and inner thoughts freely in `line`.
         '''
     def _get_characteres_message(self) -> str:
         return f'''Based on the story or script, extract the list of characters and return them as a JSON object.

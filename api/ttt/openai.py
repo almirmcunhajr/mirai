@@ -32,7 +32,10 @@ class OpenAI(TTT):
                         "name": options.response_format.__name__,
                         "schema": options.response_format.model_json_schema()
                     }
-                }
+                },
+                temperature=1.00,
+                top_p=1.00,
+                store=True
             )
             return options.response_format.model_validate_json(response.output_text)
         response = await self.client.responses.create(
