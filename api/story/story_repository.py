@@ -1,11 +1,9 @@
 from typing import List, Optional
 from uuid import UUID
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId
-from datetime import datetime
 
 from database.config import MONGODB_URL, DATABASE_NAME
-from story.story import Story, StoryNode
+from story.story import Story
 
 class StoryRepository:
     def __init__(self):
