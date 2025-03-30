@@ -24,9 +24,9 @@ class StoryService:
     async def create_story(self, genre: Genre, language_code: str, style: Style) -> Story:
         try:
             chat = Chat()
-            script = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
+            script, characters = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
 
-            root_node = StoryNode(script=script, chat=chat)
+            root_node = StoryNode(script=script, chat=chat, characters=characters)
             story = Story(
                 title=script.title,
                 genre=genre,
@@ -54,18 +54,19 @@ class StoryService:
                 raise ValueError(f"Parent node with ID {parent_node_id} not found")
             
             chat = copy.deepcopy(parent_node.chat)
-            script = await self.script_service.generate(
+            script, script_characters = await self.script_service.generate(
                 chat=chat,
                 genre=story.genre,
                 language_code=story.language,
                 decision=decision
             )
-
+            
             new_node = StoryNode(
                 script=script,
                 decision=decision,
                 parent_id=parent_node_id,
-                chat=chat
+                chat=chat,
+                characters=parent_node.characters+[c for c in script_characters if c not in parent_node.characters],
             )
 
             parent_node.children.append(new_node.id)

@@ -3,7 +3,7 @@ from enum import Enum
 from tts.tts import SpeechGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
 from elevenlabs.types import Voice
-from script.script import Character
+from story.story import Character
 
 class ElevenLabsModel(Enum):
     ELEVEN_MULTILINGUAL_V2 = "eleven_multilingual_v2"

@@ -34,7 +34,7 @@ class AudioVisualService:
             self.logger.info("Starting parallel generation of images and audio...")
             scenes_images_paths, scenes_lines_audio_paths = await asyncio.gather(
                 self.visual_service.generate_scenes_images(script, images_dir, style),
-                self.audio_service.generate_scenes_lines(script, audio_dir)
+                self.audio_service.generate_scenes_lines(story_node, audio_dir)
             )
 
             self.logger.info("Generating video clips...")

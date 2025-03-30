@@ -3,7 +3,7 @@ from enum import Enum
 from openai import AsyncOpenAI
 
 from tts.tts import TTS, SpeechGenerationOptions
-from script.script import Character
+from story.story import Character
 
 class OpenAIModel(Enum):
     TTS_1 = "tts-1"

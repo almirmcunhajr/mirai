@@ -16,16 +16,9 @@ class Scene(BaseModelNoExtra):
     visual_description: str
     lines: list[Line]
 
-class Character(BaseModelNoExtra):
-    name: str
-    age: int
-    gender: Literal["male", "female"]
-    voice_id: str = None
-
 class Script(BaseModelNoExtra):
     title: str
     genre: Genre
     language: str
     scenes: list[Scene]
-    characters: list[Character]
     end: bool

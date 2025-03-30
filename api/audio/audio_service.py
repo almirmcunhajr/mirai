@@ -3,7 +3,8 @@ import asyncio
 import os
 
 from tts.tts import TTS, SpeechGenerationOptions
-from script.script import Script, Line, Character
+from script.script import Line
+from story.story import StoryNode, Character
 from audio.exceptions import AudioGenerationError
 
 class AudioService:
@@ -47,12 +48,12 @@ class AudioService:
             scenes_lines_audio_paths[scene_id].append(file_path)
         return scenes_lines_audio_paths
 
-    async def generate_scenes_lines(self, script: Script, output_dir: str) -> dict[str, list[str]]:
+    async def generate_scenes_lines(self, story_node: StoryNode, output_dir: str) -> dict[str, list[str]]:
         os.makedirs(output_dir, exist_ok=True)
         
         tasks = [
-            self._generate_and_save_line(script.language, script.characters, line, scene_id, line_index, output_dir)
-            for scene_id, line, line_index in ((scene.id, line, line_index) for scene in script.scenes for line_index, line in enumerate(scene.lines))
+            self._generate_and_save_line(story_node.script.language, story_node.characters, line, scene_id, line_index, output_dir)
+            for scene_id, line, line_index in ((scene.id, line, line_index) for scene in story_node.script.scenes for line_index, line in enumerate(scene.lines))
         ]
         audio_paths = await asyncio.gather(*tasks)
         

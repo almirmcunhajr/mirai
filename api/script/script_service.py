@@ -1,7 +1,8 @@
 import logging
 
 from ttt.ttt import TTT, ChatOptions, Chat
-from script.script import Script, Scene, Character
+from script.script import Script, Scene
+from story.story import Character
 from common.genre import Genre
 from common.base_model_no_extra import BaseModelNoExtra
 from utils import validate_language
@@ -262,7 +263,7 @@ Do not end the story early. The narrative must have a clear beginning, middle, a
             if not not_found:
                 return [Character(name=character.name, age=character.age, gender=character.gender) for character in characters_response.characters]
     
-    async def generate(self, chat: Chat, genre: Genre = None, language_code: str = None, decision: str = None) -> Script:
+    async def generate(self, chat: Chat, genre: Genre = None, language_code: str = None, decision: str = None) -> tuple[Script, list[Character]]:
         if language_code and not validate_language(language_code):
             raise InvalidLanguageError(f"Invalid language code: {language_code}")
         
@@ -290,6 +291,5 @@ Do not end the story early. The narrative must have a clear beginning, middle, a
             genre=genre,
             language=language_code,
             scenes=script_response.scenes,
-            characters=characters,
             end=script_response.end
-        )
+        ), characters

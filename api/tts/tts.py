@@ -1,5 +1,5 @@
 from typing import Protocol
-from script.script import Character
+from story.story import Character
 from common.base_model_no_extra import BaseModelNoExtra
 
 class SpeechGenerationOptions(BaseModelNoExtra):
