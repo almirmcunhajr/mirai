@@ -1,295 +1,394 @@
 import logging
+from typing import Optional, Literal, Type
+import re
+import time
+import random
+import copy
 
-from ttt.ttt import TTT, ChatOptions, Chat
-from script.script import Script, Scene
-from story.story import Character
+from ttt.ttt import TTT, ChatOptions
+from script.script import Script, Line, Scene
+from story.story import Subject, Character, Environment, Chat
 from common.genre import Genre
 from common.base_model_no_extra import BaseModelNoExtra
-from utils import validate_language
 
-
-class InvalidLanguageError(Exception):
-    """Raised when an invalid language code is provided."""
-    pass
-
-class InvalidChatBotResponse(Exception):
-    """Raised when the chatbot response is invalid."""
-    pass
-
-class ScriptResponse(BaseModelNoExtra):
-    title: str
-    scenes: list[Scene]
-    end: bool
-
-class CharacterResponse(BaseModelNoExtra):
+class SubjectResponse(BaseModelNoExtra):
+    id: int
+    type: Literal["character", "environment"]
     name: str
-    age: int
-    gender: str
+    description: str
+    age: Optional[int]
+    gender: Optional[Literal["male", "female"]]
 
-class CharactersResponse(BaseModelNoExtra):
-    characters: list[CharacterResponse]
+class SubjectsResponse(BaseModelNoExtra):
+    subjects: list[SubjectResponse]
+
+class VisualDescriptionsResponse(BaseModelNoExtra):
+    scenes_visual_descriptions: list[str]
+
+class LineResponse(BaseModelNoExtra):
+    type: Literal["dialogue", "narration"]
+    character_id: int
+    line: str
+
+class LinesResponse(BaseModelNoExtra):
+    title: str
+    scenes_lines: list[list[LineResponse]]
 
 class ScriptService:
+    max_retries=5
+    base_delay=1
+    max_delay=60
+
     def __init__(self, ttt: TTT):
         self.ttt = ttt
         self.logger = logging.getLogger(__name__)
 
-    def _get_narrative_generation_message(self, genre: Genre, language: str) -> str:
-        return f'''Generate a {genre.value} narrative in {language} up to a impactful decision moment. 
-The story should be engaging, with a strong development of the characters and narrative, and complex dialogs, culminating in a choice for the protagonist.
-'''
-    
-    def _get_script_generation_message(self) -> str:
-        return f'''Convert the story into a structured JSON document, formatted as a cinematic screenplay.
-
-This output will be used with two separate AI systems:
-
-1. A **text-to-image model** like DALL·E, which does **not retain context between prompts**.
-2. A **text-to-speech and video generation system**, which must follow the **exact order** of narration and dialogue.
-
----
-
-## ⚠️ Follow these instructions with absolute precision:
-
-### 🎬 Output format:
-
-Return a **valid JSON object** with the following structure:
-
-- `title`: string  
-- `scenes`: array of scene objects, each containing:
-  - `id`: string (e.g., `"1"`, `"2"`)
-  - `visual_description`: string — see strict rules below
-  - `lines`: array of objects with:
-    - `type`: `"dialogue"` or `"narration"`
-    - `character`: name of the speaker (use `"Narrator"` only for general narration)
-    - `line`: the actual spoken or narrated content
-- `end`: boolean indicating if the story has reached its conclusion
-
-Make sure to preserve the original language of the narrative in the narrations and dialogues.
-
----
-
-### 📸 `visual_description` rules (STRICT AND NON-NEGOTIABLE):
-
-This field must be a **single, complete, and self-contained string**, describing the scene **as if no prior context exists**.
-
-#### ❌ NEVER USE:
-- Pronouns (e.g., “he”, “she”, “they”, “his”, “her”)
-- Character names (e.g., “Lucas”, “Maria”)
-- Vague references (e.g., “the young woman”, “the couple”, “the house”, “the same violin player”)
-
-#### ✅ ALWAYS:
-- Fully re-describe **every character**, **every location**, and **every object**, **from scratch**, in **every scene**, even if they have appeared before.
-
----
-
-Every character must be described with the following:
-
-#### ✅ **Full Physical Description** (Use this level of granularity **every time**):
-
-- **Age range** (e.g., early 40s)  
-- **Gender**  
-- **Skin tone** (e.g., light brown, pale, ebony)  
-- **Body type and posture** (e.g., athletic build with broad shoulders; slim frame with a hunched stance)  
-- **Face**:  
-  - **Shape** (e.g., angular, oval, round)  
-  - **Eye color and shape** (e.g., almond-shaped hazel eyes)  
-  - **Eyebrows** (e.g., thick and arched, or sparse and flat)  
-  - **Nose** (e.g., straight and narrow, wide and rounded)  
-  - **Mouth and lips** (e.g., full lips slightly parted, thin lips pressed tight)  
-  - **Cheeks** (e.g., sunken, rosy, freckled)  
-  - **Chin and jawline** (e.g., strong jaw with a cleft chin)  
-  - **Visible micro-expressions** (e.g., subtle smirk, trembling lower lip, twitching eyelid)  
-- **Hair**: texture, color, length, and style (e.g., shoulder-length curly auburn hair tied in a loose bun)  
-- **Eyes and gaze direction** (e.g., eyes narrowed, looking downward; wide-eyed stare into the distance)  
-- **Hands and gestures** (e.g., fingers twitching, hands clenched into fists, one hand adjusting a sleeve)  
-- **Clothing**:  
-  - **Type, style, texture, and color** (e.g., loose beige linen shirt tucked into worn-out jeans)  
-  - **Condition** (e.g., pristine, wrinkled, stained, torn)  
-- **Accessories or distinctive features**:  
-  - (e.g., wireframe glasses, scar on left eyebrow, tribal tattoo on right forearm, silver wedding ring)
-
-> ⚠️ These details must be unique and **re-stated** in full for each scene, **even if the same character reappears**.
-
----
-
-### 🏠 LOCATION DESCRIPTION TEMPLATE
-
-Every location must be fully described as if the viewer has never seen it before:
-
-- Interior or exterior  
-- Type of building or setting (e.g., rustic cabin, neon-lit alley, cathedral nave)  
-- Architecture and layout  
-- Furniture and notable objects  
-- Colors and textures of materials (e.g., cracked plaster walls, dusty wooden floors)  
-- Lighting conditions (natural or artificial, warm or cold light, harsh shadows or soft glows)  
-- Time of day and visible weather  
-- Ambient elements (e.g., flickering candle, buzzing neon, rustling leaves)  
-- Atmosphere and mood (e.g., tense silence, cozy warmth, sterile emptiness)
-
-> 💡 Each `visual_description` must stand alone — it should be enough to generate a full image without relying on any previous scenes.
-
----
-
-### 🎭 `lines` rules:
-
-Each scene must include an array called `lines`, in **sequential order**, containing both dialogue and narration.
-
-Each line must be an object with:
-- `type`: `"dialogue"` or `"narration"`
-- `character`: speaker's name  
-  - Use `"Narrator"` only for general exposition or scene-setting narration
-- `line`: the actual spoken or narrated content, written in **natural, expressive, screenplay-style language**
-
-Make sure the dialogue is **natural and engaging**, with a focus on character development. 
-
-⚠️ Do not rush the dialogue or narration. It should feel **natural and unhurried**, allowing the reader to fully immerse in the story.
-
-✅ You **can and should** use names, pronouns, emotions, and inner thoughts freely in `line`.
+    def _get_narrative_generation_message(self, genre: Genre, language: str, decision: str = None) -> str:
+        if decision:
+            return self._get_decision_message(decision)
+        return f''''Generate a compelling {genre.value} narrative in {language}, leading up to a pivotal dilemma for the protagonist.
+The story should feature well-developed characters, rich world-building, and emotionally resonant, complex dialogue. Build tension gradually, creating a strong narrative arc that culminates in a meaningful and difficult choice for the protagonist.
         '''
-    def _get_characteres_message(self) -> str:
-        return f'''Based on the story or script, extract the list of characters and return them as a JSON object.
-
-The value for each character must be an object containing:
-    - name: the character's name
-    - age: approximate age (as an integer)
-    - gender: "male", "female"
-
-⚠️ The character names used as keys must **exactly match** the names used in the "character" fields inside the lines array of the script (both for dialogue and narration). This ensures voice-matching works properly later.
-
-Only include characters who speak or narrate in the script.
-Do not include "Narrator" — it is a system voice, not a character.
-'''
-    
-    def _get_invalid_characters_message(self, not_found: list[str]) -> str:
-        return f''''The following characters were not found in the characters response: {', '.join(not_found)}.
-Please ensure that the character names in the script match the names in the characters response.
-'''
     
     def _get_decision_message(self, decision: str) -> str:
         return f'''I decided to "{decision}".
-Reflect deeply on this choice and its potential consequences for the story. Then, generate the continuation of the narrative up to the next impactful decision moment, or the end of the story if appropriate.
 
-Make sure to respect the rules established in the previous messages:
+Reflect deeply on this choice and its potential consequences for the story. Consider how it affects the protagonist, other characters, relationships, motivations, and the world around them.
 
-### 📸 `visual_description` rules (STRICT AND NON-NEGOTIABLE):
+Then, continue the narrative from this decision point, advancing the story with full narrative momentum. Write with emotional depth, character development, and narrative coherence.
 
-This field must be a **single, complete, and self-contained string**, describing the scene **as if no prior context exists**.
-
-#### ❌ NEVER USE:
-- Pronouns (e.g., “he”, “she”, “they”, “his”, “her”)
-- Character names (e.g., “Lucas”, “Maria”)
-- Vague references (e.g., “the young woman”, “the couple”, “the house”, “the same violin player”)
-
-#### ✅ ALWAYS:
-- Fully re-describe **every character**, **every location**, and **every object**, **from scratch**, in **every scene**, even if they have appeared before.
+The continuation must lead naturally toward the **next major dilemma** the protagonist must face — or the **conclusion of the story**, if this decision logically propels the plot toward its resolution.
 
 ---
 
-Every character must be described with the following:
+### 🧭 Narrative Structure Requirements
 
-#### ✅ **Full Physical Description** (Use this level of granularity **every time**):
-
-- **Age range** (e.g., early 40s)  
-- **Gender**  
-- **Skin tone** (e.g., light brown, pale, ebony)  
-- **Body type and posture** (e.g., athletic build with broad shoulders; slim frame with a hunched stance)  
-- **Face**:  
-  - **Shape** (e.g., angular, oval, round)  
-  - **Eye color and shape** (e.g., almond-shaped hazel eyes)  
-  - **Eyebrows** (e.g., thick and arched, or sparse and flat)  
-  - **Nose** (e.g., straight and narrow, wide and rounded)  
-  - **Mouth and lips** (e.g., full lips slightly parted, thin lips pressed tight)  
-  - **Cheeks** (e.g., sunken, rosy, freckled)  
-  - **Chin and jawline** (e.g., strong jaw with a cleft chin)  
-  - **Visible micro-expressions** (e.g., subtle smirk, trembling lower lip, twitching eyelid)  
-- **Hair**: texture, color, length, and style (e.g., shoulder-length curly auburn hair tied in a loose bun)  
-- **Eyes and gaze direction** (e.g., eyes narrowed, looking downward; wide-eyed stare into the distance)  
-- **Hands and gestures** (e.g., fingers twitching, hands clenched into fists, one hand adjusting a sleeve)  
-- **Clothing**:  
-  - **Type, style, texture, and color** (e.g., loose beige linen shirt tucked into worn-out jeans)  
-  - **Condition** (e.g., pristine, wrinkled, stained, torn)  
-- **Accessories or distinctive features**:  
-  - (e.g., wireframe glasses, scar on left eyebrow, tribal tattoo on right forearm, silver wedding ring)
-
-> ⚠️ These details must be unique and **re-stated** in full for each scene, **even if the same character reappears**.
+- Do **not** end the story early or abruptly  
+- The story must follow a clear structure with a **beginning**, **middle**, and **end**  
+- Include a strong **climax** and a **well-developed conclusion** if the arc reaches its natural endpoint  
+- If the story continues, end the output on a **new pivotal choice** or **dilemma** for the protagonist
 
 ---
 
-### 🏠 LOCATION DESCRIPTION TEMPLATE
+### ✍️ Writing Style
 
-Every location must be fully described as if the viewer has never seen it before:
+- Write in natural, immersive prose with narrative and emotional depth  
+- Show consequences through actions, interactions, and character growth  
+- Maintain consistency in tone, voice, and pacing  
+- Avoid summarizing — **narrate events** as they unfold
 
-- Interior or exterior  
-- Type of building or setting (e.g., rustic cabin, neon-lit alley, cathedral nave)  
-- Architecture and layout  
+---
+
+The final output must read as a seamless continuation of the story, shaped by the decision:  
+**"{decision}"**
+        '''
+    
+    def _get_subjects_generation_message(self, subjects: dict[str, Subject]) -> str:
+        existing_subjects = ''
+        if subjects:
+            existing_subjects = 'Consider the following existing elements:\n'
+            for id in subjects:
+                subject = subjects[id]
+                if isinstance(subject, Character):
+                    existing_subjects += f'type: character\n'
+                if isinstance(subject, Environment):
+                    existing_subjects += f'type: environment\n'
+
+                existing_subjects += f'id: {id}\n'
+                existing_subjects += f'name: {subject.name}\n'
+                existing_subjects += f'description: {subject.description}\n'
+                if isinstance(subject, Character):
+                    existing_subjects += f'age: {subject.age}\n'
+                    existing_subjects += f'gender: {subject.gender}\n'
+                existing_subjects += '\n'
+
+        return f''''Return the characters and places description of the narrative as fully written descriptive text. The descriptions must be rich, immersive, and naturally integrated, as if written for a novel or screenplay.
+
+Each character and each environment must be assigned a unique **ID number** (integer).
+
+---
+
+### ✅ **Character Description Instructions**
+
+Write descriptive text for each character. The description must reflect the **neutral, consistent visual appearance** of the character — not their current emotional state or momentary expressions.
+
+Include the following elements, woven fluidly into the text:
+
+- Age and gender  
+- Skin tone, body type, and posture  
+- Facial features: face shape, eyes (color and shape), eyebrows, nose, lips, cheeks, chin, and jawline  
+- Hair: texture, length, color, and style  
+- Gaze direction (default or typical), without describing mood  
+- Neutral hand and gesture tendencies (e.g., left-handed, steady hands)  
+- Clothing: typical style, texture, color, and condition  
+- Accessories or distinctive physical features (e.g., tattoos, scars, glasses)
+
+❗ Do **not** include emotional traits, mood, or expressions such as smiles, frowns, sadness, or tension — these will vary per scene and must be described in the **scene visual description** instead.
+
+---
+
+### 🏠 **Environment Description Instructions**
+
+Describe each environment in natural, flowing text. Each environment must feel immersive, as if the reader is experiencing it firsthand. Include:
+
+- Whether it is an interior or exterior  
+- Type of setting or building  
+- Architecture and spatial layout  
 - Furniture and notable objects  
-- Colors and textures of materials (e.g., cracked plaster walls, dusty wooden floors)  
-- Lighting conditions (natural or artificial, warm or cold light, harsh shadows or soft glows)  
+- Colors and textures of materials  
+- Lighting conditions (source, intensity, color temperature, direction)  
 - Time of day and visible weather  
-- Ambient elements (e.g., flickering candle, buzzing neon, rustling leaves)  
-- Atmosphere and mood (e.g., tense silence, cozy warmth, sterile emptiness)
+- Ambient details (movement, sound, scent, air)  
+- Overall atmosphere in its **default or unoccupied state**
 
-> 💡 Each `visual_description` must stand alone — it should be enough to generate a full image without relying on any previous scenes.
+Avoid emotional atmosphere linked to specific characters or events unless they are intrinsic to the place itself.
 
-Do not end the story early. The narrative must have a clear beginning, middle, and end, with proper climax and well developed conclusion.
+All elements must be integrated into natural, continuous prose. Do not use list format or attribute labels.
+
+---
+
+Consider the following existing elements:
+{existing_subjects}
+
+If no new character or environment is needed, return an empty list. Else, return only the new characters and environments, each with a unique ID number.
+        '''
+    
+    def _get_lines_generation_message(self) -> str:
+        return f'''Generate scenes for the narrative.
+
+The output must be a **list of scenes**. Each scene is an object containing:
+
+- A `lines` list: a sequential array of narration and dialogue entries that tell the story within that scene.
+
+---
+
+### 🎬 Scene Structure and Logic
+
+A scene is a **coherent unit of narrative meaning**, defined by a consistent environment, moment, and emotional or action-based beat.
+
+Break the narrative into scenes based on:
+
+- A change in environment or time  
+- A shift in action, character interaction, or emotional tone  
+- A transition that would require a new cinematic framing or beat
+
+Each scene should reflect a clear transition in story logic — not arbitrary segments of text. Think cinematically.
+
+---
+
+### 🗣️ Line Format (Strict Typing Rules)
+
+Each scene must contain a `lines` field: an ordered list of narrative elements. Each line must be an object with the following structure:
+
+- `type`: `"dialogue"` or `"narration"`  
+- `character_id`:  
+  - The character’s **ID** (an integer) if `type` is `"dialogue"`  
+  - `-1` if `type` is `"narration"`  
+- `line`: the spoken or narrated content, written in **natural, expressive, screenplay-style language**
+
+---
+
+### 🔒 STRICT TYPING RULES
+
+**Narration lines (`type: "narration"`):**
+
+- Represent what the **narrator says aloud**, exactly as it should be spoken in voice-over  
+- Used only for storytelling transitions, inner monologue (if in narrator's voice), scene descriptions, or emotional commentary  
+- Must **not** include any character dialogue or quoted speech  
+- Must be fully self-contained and suitable for a TTS narrator to read out loud
+
+**Dialogue lines (`type: "dialogue"`):**
+
+- Represent **direct speech** by characters  
+- Must only include what the character **actually says aloud**  
+- Must **not** include narration, descriptions, or context — only the character’s spoken words
+
+**NEVER** mix narration and dialogue in the same line. If a line includes both (e.g., action followed by speech), **split it** into separate entries — one `narration` line and one `dialogue` line.
+
+---
+
+### ✅ Writing Guidelines
+
+- Dialogue should reflect each character’s unique voice, emotion, and intent  
+- Narration should provide vivid story transitions and emotional flow, suitable for spoken delivery by a narrator  
+- All lines must read like a film script: expressive, cinematic, and emotionally grounded  
+- Write in the **same language and genre** as the original story  
+- Do **not** include visual directions, gestures, camera movements, or sound cues — those will be handled separately
+
+---
+
+The final output must be a **structured list of scenes**, where each scene contains:
+
+- A `lines` array  
+- Each `line` object must follow the strict typing and content rules above  
+- No extra metadata, formatting, or content outside of this structure
 '''
     
-    def _get_not_found_characters(self, characters_response: CharactersResponse, script_response: ScriptResponse) -> list[str]:
-        lines_characters = set([line.character for scene in script_response.scenes for line in scene.lines if line.type == "dialogue"])
-        characters_names = set([character.name for character in characters_response.characters])
-        not_found_characters = []
-        for character in lines_characters:
-            if character not in characters_names:
-                self.logger.error(f"Character '{character}' not found in characters response.")
-                not_found_characters.append(character)
-        if not_found_characters:
-            return not_found_characters
-        return []
-    
-    async def _get_characters(self, chat: Chat, script_response: ScriptResponse):
-        not_found = []
-        while True:
-            message = self._get_characteres_message()
-            if not_found:
-                message = self._get_invalid_characters_message(not_found)
-            chat.add_user_message(message)
-            
-            chat_options = ChatOptions(response_format=CharactersResponse)
-            characters_response: CharactersResponse = await self.ttt.chat(chat, chat_options)
-            chat.add_assistant_response(characters_response.model_dump_json())
+    def _get_visual_descriptions_generation_message(self) -> str:
+        return f'''**For each scene**, generate a rich, immersive `visual_description`.
 
-            not_found = self._get_not_found_characters(characters_response, script_response)
-            if not not_found:
-                return [Character(name=character.name, age=character.age, gender=character.gender) for character in characters_response.characters]
+The description must convey everything that would be visible in a **single cinematic frame** representing the scene.
+
+This `visual_description` will be used to generate a static image. Therefore, it must capture the **visual composition, character expressions, emotional tone, spatial dynamics, and atmosphere** of the moment.
+
+---
+
+### 🖼️ Visual Description Instructions
+
+Each `visual_description` must include:
+
+- The **environment**, referenced using the format `#<id>` (e.g., `#3`)  
+- The **characters present**, referenced using the format `#<id>` (e.g., `#1`, `#2`)  
+- The **placement, posture, and interaction** of characters within the space  
+- **Facial expressions, gestures, and emotional states** specific to the moment  
+- Relevant **props or objects** being used or interacted with  
+- **Lighting**, **weather**, and **mood**, if applicable  
+- Any ambient or environmental elements that visually define the scene (e.g., smoke, rain, shadows, dust, glowing screens)
+
+---
+
+### 🧾 Format Rules
+
+- Always use the `#<id>` format when referring to both characters and environments  
+- Write in natural, cinematic prose — not a list or structured object  
+- Keep the description tightly focused on what is **visually present** in the scene  
+- Avoid internal thoughts or narrative exposition — this is a **visual** frame only  
+- The text should read like a vivid frame description from a screenplay or storyboard
+
+---
+
+The final output must be a `visual_description` for each scene in the narrative, written as a single descriptive paragraph per scene, referencing all characters and the environment by their `#<id>`.
+'''
+    def _get_visual_description_improvement_message(self, visual_description: str) -> str:
+        return f'''Improve the writing of the following scene visual description. Make sure to not change any characteristic, only improve the writing and make it more concise:
+"{visual_description}"
+'''
     
-    async def generate(self, chat: Chat, genre: Genre = None, language_code: str = None, decision: str = None) -> tuple[Script, list[Character]]:
-        if language_code and not validate_language(language_code):
-            raise InvalidLanguageError(f"Invalid language code: {language_code}")
+    def _parse_lines_response(self, lines_response: LinesResponse, subjects: dict[str, Subject]) -> None:
+        all_lines = [line for scene in lines_response.scenes_lines for line in scene]
+        errors = []
+        for i, line in enumerate(all_lines):
+            if line.type == "dialogue":
+                if str(line.character_id) not in subjects:
+                    msg = f'The character id for the line: "{line.model_dump_json()}" does not exist.'
+                    if line.character_id == -1:
+                        msg = f'The character id for the line: "{line.model_dump_json()}" is -1. Please, use -1 only for narration lines.'
+                    errors.append(msg)
+                    continue
+                character = subjects[str(line.character_id)]
+                if not isinstance(character, Character):
+                    errors.append(f'The ID for the line {line.model_dump_json()} does not refer to a character.')
+                    continue
+        if errors:
+            raise ValueError(f'There\'re {len(errors)} issues in your response. Please fix them:\n' + '\n'.join(errors))
+    
+    def _parse_visual_descriptions_response(self, visual_descriptions_response: VisualDescriptionsResponse, lines_response: LinesResponse, subjects: dict[str, Subject]) -> None:
+        if len(visual_descriptions_response.scenes_visual_descriptions) != len(lines_response.scenes_lines):
+            raise ValueError(f'You previously generated {len(lines_response)} scenes. The number of visual descriptions does not match the number of scenes. Please generate a visual description for each scene.')
+
+        reference_pattern = re.compile(r"#(\d+)")
+        errors = []
+        for visual_description in visual_descriptions_response.scenes_visual_descriptions:
+            matches = reference_pattern.findall(visual_description)
+            for match in matches:
+                id = int(match)
+                if str(id) not in subjects:
+                    errors.append(f'The ID #{id} referenced in the visual description: "{visual_description}" was not found.')
+                    continue
         
-        if not decision:
-            message = self._get_narrative_generation_message(genre, language_code)
-            chat.add_user_message(message)
+        if errors:
+            raise ValueError(f'There\'re {len(errors)} issues in your response. Please fix them:\n' + '\n'.join(errors))
+                
+        for i, visual_description in enumerate(visual_descriptions_response.scenes_visual_descriptions):
+            substitutions = set()
+            for id in subjects:
+                subject = subjects[id]
+                if id not in substitutions:
+                    visual_description = visual_description.replace(f"#{id}", f"{subject.name} ({subject.description})")
+                    substitutions.add(id)
+                visual_description = visual_description.replace(f"#{id}", f"{subject.name}")
+            visual_descriptions_response.scenes_visual_descriptions[i] = visual_description
 
-            chat_options = ChatOptions()
-            narrative = await self.ttt.chat(chat, chat_options)
-            chat.add_assistant_response(narrative)
+    def _parse_subjects_response(self, subjects_response: SubjectsResponse, subjects: dict[str, Subject]) -> None:
+        errors = []
+        for subject_response in subjects_response.subjects:
+            if str(subject_response.id) in subjects:
+                errors.append(f"The ID {subject_response.id} already exists. Please, do not try to recreate a already existing subject, and always use different IDs for new subjects.")
+                continue
+            subject = None
+            if subject_response.type == "character":
+                subject = Character(
+                    name=subject_response.name,
+                    description=subject_response.description,
+                    age=subject_response.age,
+                    gender=subject_response.gender,
+                )
+            if subject_response.type == "environment":
+                subject = Environment(
+                    name=subject_response.name,
+                    description=subject_response.description,
+                )
+            subjects[str(subject_response.id)] = subject
+        
+        if errors:
+            raise ValueError(f'There\'re {len(errors)} issues in your response. Please fix them:\n' + '\n'.join(errors))
 
-            message = self._get_script_generation_message()
-            chat.add_user_message(message)
-        else:
-            message = self._get_decision_message(decision)
-            chat.add_user_message(message)
+    async def _exponential_backoff_generate_retry(self, generator: callable, message: str, chat: Chat, response_type: Type[BaseModelNoExtra], parser: callable, *args):
+        chat_options = ChatOptions(response_format=response_type)
+        chat.add_user_message(message)
+        for attempt in range(self.max_retries):
+            try:
+                response: BaseModelNoExtra = await generator(chat, chat_options)
+                chat.add_assistant_response(response.model_dump_json())
+                parser(response, *args)
+                return response
+            except Exception as e:
+                chat.add_user_message(str(e))
+                wait_time = min(self.base_delay * (2 ** attempt), self.max_delay)
+                wait_time = wait_time * random.uniform(0.5, 1.5)
+                self.logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait_time:.2f} seconds...")
+                time.sleep(wait_time)
+        raise Exception(f"Function failed after {self.max_retries} retries.")
 
-        chat_options = ChatOptions(response_format=ScriptResponse)
-        script_response: ScriptResponse = await self.ttt.chat(chat, chat_options)
-        chat.add_assistant_response(script_response.model_dump_json())
+    async def generate(self, chat: Chat, genre: Genre = None, language_code: str = None, decision: str = None, subjects: dict[str, Subject] = {}) -> tuple[Script, dict[str, Subject]]:
+        subjects = copy.deepcopy(subjects)
 
-        characters = await self._get_characters(chat, script_response)
+        self.logger.info(f"Generating narrative with genre: {genre}, language: {language_code}, decision: {decision}")
+        message = self._get_narrative_generation_message(genre, language_code, decision)
+        chat.add_user_message(message)
+        chat_options = ChatOptions()
+        narrative = await self.ttt.chat(chat, chat_options)
+        chat.add_assistant_response(narrative)
+
+        self.logger.info(f"Generating subjects for the narrative")
+        message = self._get_subjects_generation_message(subjects)
+        await self._exponential_backoff_generate_retry(self.ttt.chat, message, chat, SubjectsResponse, self._parse_subjects_response, subjects)
+
+        self.logger.info(f"Generating lines for the narrative")
+        message = self._get_lines_generation_message()
+        lines_response: LinesResponse = await self._exponential_backoff_generate_retry(self.ttt.chat, message, chat, LinesResponse, self._parse_lines_response, subjects)
+
+        self.logger.info(f"Generating visual descriptions for the narrative")
+        message = self._get_visual_descriptions_generation_message()
+        visual_descriptions_response: VisualDescriptionsResponse = await self._exponential_backoff_generate_retry(self.ttt.chat, message, chat, VisualDescriptionsResponse, self._parse_visual_descriptions_response, lines_response, subjects)
+        
+        scenes = []
+        for i, scene_lines in enumerate(lines_response.scenes_lines):
+            lines = [Line(**line.model_dump()) for line in scene_lines]
+            visual_description = visual_descriptions_response.scenes_visual_descriptions[i]
+
+            self.logger.info(f"Creating a scene with id: {i}, visual description: {visual_description}, lines: {lines}")
+            scenes.append(Scene(
+                id=i,
+                visual_description=visual_description,
+                lines=lines
+            ))
+        
+        self.logger.info('Script generated successfully')
         return Script(
-            title=script_response.title,
+            title=lines_response.title,
             genre=genre,
             language=language_code,
-            scenes=script_response.scenes,
-            end=script_response.end
-        ), characters
+            scenes=scenes,
+            end=False
+        ), subjects

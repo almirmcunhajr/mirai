@@ -2,11 +2,10 @@ import logging
 import os
 import tempfile
 import asyncio
-import shutil
 from moviepy.video.VideoClip import ImageClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 from moviepy.video.compositing.CompositeVideoClip import concatenate_videoclips
-from moviepy.audio.AudioClip import concatenate_audioclips
+from moviepy.audio.AudioClip import concatenate_audioclips, CompositeAudioClip
 
 from visual.visual_service import VisualService
 from story.story import Style
@@ -45,10 +44,8 @@ class AudioVisualService:
                 image_path = scenes_images_paths[scene.id]
                 lines_paths = scenes_lines_audio_paths[scene.id]
 
-                image_clip = ImageClip(image_path)
-                concatenated_audio = concatenate_audioclips([AudioFileClip(line_path) for line_path in lines_paths])
-                scene_clip = image_clip.with_duration(concatenated_audio.duration).with_audio(concatenated_audio)
-                scenes_clips.append(scene_clip)
+                concatenated_audio: CompositeAudioClip = concatenate_audioclips([AudioFileClip(line_path) for line_path in lines_paths])
+                scenes_clips.append(ImageClip(image_path).with_duration(concatenated_audio.duration).with_audio(concatenated_audio))
 
             self.logger.info("Concatenating video clips...")
             final_clip = concatenate_videoclips(scenes_clips)
@@ -58,7 +55,7 @@ class AudioVisualService:
                 output_path,
                 fps=24,
                 codec='libx264',
-                audio_codec='aac'
+                audio_codec='mp3'
             )
             final_clip.close()
             for scene_clip in scenes_clips:
@@ -71,7 +68,3 @@ class AudioVisualService:
         except Exception as e:
             self.logger.error(f"Unexpected error during video generation: {str(e)}", exc_info=True)
             raise VideoGenerationError(f"Unexpected error during video generation: {str(e)}")
-        finally:
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
-                self.logger.info("Cleaned up temporary files") 

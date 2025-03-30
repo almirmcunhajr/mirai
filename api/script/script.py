@@ -1,22 +1,18 @@
 from typing import Optional, Literal
 from common.genre import Genre
-from common.base_model_no_extra import BaseModelNoExtra
+from pydantic import BaseModel
 
-class PathNode(BaseModelNoExtra):
-    script: 'Script'
-    decision: Optional[str] = None
-
-class Line(BaseModelNoExtra):
+class Line(BaseModel):
     type: Literal["dialogue", "narration"]
-    character: str
+    character_id: Optional[int]
     line: str
 
-class Scene(BaseModelNoExtra):
+class Scene(BaseModel):
     id: int
     visual_description: str
     lines: list[Line]
 
-class Script(BaseModelNoExtra):
+class Script(BaseModel):
     title: str
     genre: Genre
     language: str

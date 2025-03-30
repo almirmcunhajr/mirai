@@ -5,9 +5,8 @@ from uuid import UUID
 from datetime import datetime, timezone
 
 from script.script_service import ScriptService
-from script.script import PathNode
 from audiovisual.audiovisual_service import AudioVisualService
-from story.story import Story, StoryNode, Style
+from story.story import Story, StoryNode, Style, PathNode
 from story.story_repository import StoryRepository
 from story.exceptions import StoryGenerationError, BranchCreationError, StoryNotFoundError
 from common.genre import Genre
@@ -24,9 +23,9 @@ class StoryService:
     async def create_story(self, genre: Genre, language_code: str, style: Style) -> Story:
         try:
             chat = Chat()
-            script, characters = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
+            script, subjects = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
 
-            root_node = StoryNode(script=script, chat=chat, characters=characters)
+            root_node = StoryNode(script=script, chat=chat, subjects=subjects)
             story = Story(
                 title=script.title,
                 genre=genre,
@@ -54,11 +53,12 @@ class StoryService:
                 raise ValueError(f"Parent node with ID {parent_node_id} not found")
             
             chat = copy.deepcopy(parent_node.chat)
-            script, script_characters = await self.script_service.generate(
+            script, subjects = await self.script_service.generate(
                 chat=chat,
                 genre=story.genre,
                 language_code=story.language,
-                decision=decision
+                decision=decision,
+                subjects=parent_node.subjects,
             )
             
             new_node = StoryNode(
@@ -66,7 +66,7 @@ class StoryService:
                 decision=decision,
                 parent_id=parent_node_id,
                 chat=chat,
-                characters=parent_node.characters+[c for c in script_characters if c not in parent_node.characters],
+                subjects=subjects,
             )
 
             parent_node.children.append(new_node.id)

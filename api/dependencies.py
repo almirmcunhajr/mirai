@@ -60,8 +60,8 @@ def get_script_service(ttt: TTT = Depends(get_openai_ttt)) -> ScriptService:
     return ScriptService(ttt)
 
 @lru_cache()
-def get_visual_service(tti: TTI = Depends(get_together_tti)) -> VisualService:
-    return VisualService(tti)
+def get_visual_service(tti: TTI = Depends(get_together_tti), ttt: TTT = Depends(get_openai_ttt)) -> VisualService:
+    return VisualService(tti, ttt)
 
 @lru_cache()
 def get_audio_service(tts: TTS = Depends(get_elevenlabs_tts)) -> AudioService:

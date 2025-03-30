@@ -1,4 +1,5 @@
 from enum import Enum
+import random
 
 from tts.tts import SpeechGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
@@ -57,6 +58,7 @@ class ElevenLabs:
         response = await self.client.voices.search(page_size=100)
         voice_id = None
         while True:
+            random.shuffle(response.voices)
             for voice in response.voices:
                 if voice.voice_id in used_voices:
                     continue

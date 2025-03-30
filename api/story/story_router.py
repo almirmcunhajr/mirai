@@ -9,6 +9,7 @@ from story.exceptions import StoryNotFoundError, BranchCreationError
 from story.story import Style
 from common.genre import Genre
 from dependencies import get_story_service
+from utils.utils import validate_language
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
@@ -26,6 +27,9 @@ async def create_story(
     request: CreateStoryRequest,
     story_service: StoryService = Depends(get_story_service)
 ) -> Story:
+    validate_language(request.language_code)
+    if not request.language_code:
+        raise HTTPException(status_code=400, detail="Invalid language code")
     story = await story_service.create_story(
         genre=request.genre,
         language_code=request.language_code,

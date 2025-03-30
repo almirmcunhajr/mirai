@@ -4,7 +4,7 @@ import os
 
 from tts.tts import TTS, SpeechGenerationOptions
 from script.script import Line
-from story.story import StoryNode, Character
+from story.story import StoryNode, Subject, Character
 from audio.exceptions import AudioGenerationError
 
 class AudioService:
@@ -13,25 +13,29 @@ class AudioService:
         self.logger = logging.getLogger(__name__)
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
-    async def _generate_and_save_line(self, language: str, characters: list[Character], line: Line, scene_id: str, line_index: int, output_dir: str) -> tuple[str, str, int]:
+    async def _generate_and_save_line(self, language: str, subjects: dict[str, Subject], line: Line, scene_id: str, line_index: int, output_dir: str) -> tuple[str, str, int]:
+        characters = [subject for subject in subjects.values() if isinstance(subject, Character)]
         try:
             async with self.semaphore:
                 options = SpeechGenerationOptions()
                 if line.type == "dialogue":
-                    character = next((c for c in characters if c.name == line.character), None)
+                    character: Character = subjects[str(line.character_id)]
                     if not character.voice_id:
-                        used_voices = set([character.voice_id for character in characters if character.voice_id])
+                        self.logger.info(f"Getting voice for character {character.name} in scene {scene_id} line {line_index}")
+                        used_voices = set([c.voice_id for c in characters if c.voice_id is not None])
                         character.voice_id = await self.tts.get_voice(language, used_voices, character)
                     options.voice = character.voice_id
                 else:
                     options.voice = await self.tts.get_voice(language, [], None)
-
+                
+                self.logger.info(f"Generating {line.type} for scene {scene_id} line {line_index} with voice {options.voice}")
                 audio_data = await self.tts.to_speech(line.line, options)
                 
                 file_path = os.path.join(output_dir, f"{scene_id}_{line_index}.mp3")
                 with open(file_path, "wb") as f:
                     f.write(audio_data)
-                    
+                
+                self.logger.info(f"Saved {line.type} for scene {scene_id} line {line_index} to {file_path}")
                 return file_path, scene_id, line_index
                     
         except Exception as e:
@@ -52,7 +56,7 @@ class AudioService:
         os.makedirs(output_dir, exist_ok=True)
         
         tasks = [
-            self._generate_and_save_line(story_node.script.language, story_node.characters, line, scene_id, line_index, output_dir)
+            self._generate_and_save_line(story_node.script.language, story_node.subjects, line, scene_id, line_index, output_dir)
             for scene_id, line, line_index in ((scene.id, line, line_index) for scene in story_node.script.scenes for line_index, line in enumerate(scene.lines))
         ]
         audio_paths = await asyncio.gather(*tasks)
