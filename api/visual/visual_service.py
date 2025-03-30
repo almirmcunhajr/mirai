@@ -17,7 +17,7 @@ class VisualService:
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     def _get_image_generation_prompt(self, scene: Scene, style: Style) -> str:
-        return f'''Generate a scene in **{style}** style with the following description:
+        return f'''Generate a scene in {style} style with the following description:
 {scene.visual_description}
 
 Make sure the characteres are naturaly and coherently acting.

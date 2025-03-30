@@ -19,7 +19,7 @@ class AudioService:
                 if line.type == "dialogue":
                     character = next((c for c in characters if c.name == line.character), None)
                     if not character.voice_id:
-                        used_voices = {character.voice_id: 1 for character in characters if character.voice_id}
+                        used_voices = set([character.voice_id for character in characters if character.voice_id])
                         character.voice_id = await self.tts.get_voice(language, used_voices, character)
                     options.voice = character.voice_id
                 else:

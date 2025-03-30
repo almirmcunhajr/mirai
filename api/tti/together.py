@@ -19,8 +19,8 @@ class Together:
             width=options.width,
             height=options.height,
             n=1,
-            guidance_scale=3.5,
             steps=4,
-            response_format='base64'
+            stop=[],
+            response_format='b64_json',
         )
         return response.data[0].b64_json

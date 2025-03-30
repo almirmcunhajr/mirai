@@ -16,10 +16,6 @@ class Scene(BaseModelNoExtra):
     visual_description: str
     lines: list[Line]
 
-class Ending(BaseModelNoExtra):
-    type: Literal["decision", "end"]
-    description: str
-
 class Character(BaseModelNoExtra):
     name: str
     age: int
@@ -32,4 +28,4 @@ class Script(BaseModelNoExtra):
     language: str
     scenes: list[Scene]
     characters: list[Character]
-    ending: Ending
+    end: bool
