@@ -6,18 +6,18 @@ import random
 import copy
 
 from ttt.ttt import TTT, ChatOptions
-from script.script import Script, Line, Scene
-from story.story import Subject, Character, Environment, Chat
+from script.script import Script, Line, Scene, LineType
+from story.story import Subject, Character, Environment, Chat, SubjectType, CharacterGender
 from common.genre import Genre
 from common.base_model_no_extra import BaseModelNoExtra
 
 class SubjectResponse(BaseModelNoExtra):
     id: int
-    type: Literal["character", "environment"]
+    type: SubjectType
     name: str
     description: str
     age: Optional[int]
-    gender: Optional[Literal["male", "female"]]
+    gender: Optional[CharacterGender]
 
 class SubjectsResponse(BaseModelNoExtra):
     subjects: list[SubjectResponse]
@@ -26,7 +26,7 @@ class VisualDescriptionsResponse(BaseModelNoExtra):
     scenes_visual_descriptions: list[str]
 
 class LineResponse(BaseModelNoExtra):
-    type: Literal["dialogue", "narration"]
+    type: LineType
     character_id: int
     line: str
 
@@ -268,7 +268,7 @@ The final output must be a `visual_description` for each scene in the narrative,
         all_lines = [line for scene in lines_response.scenes_lines for line in scene]
         errors = []
         for i, line in enumerate(all_lines):
-            if line.type == "dialogue":
+            if line.type == LineType.DIALOGUE:
                 if str(line.character_id) not in subjects:
                     msg = f'The character id for the line: "{line.model_dump_json()}" does not exist.'
                     if line.character_id == -1:
@@ -316,14 +316,14 @@ The final output must be a `visual_description` for each scene in the narrative,
                 errors.append(f"The ID {subject_response.id} already exists. Please, do not try to recreate a already existing subject, and always use different IDs for new subjects.")
                 continue
             subject = None
-            if subject_response.type == "character":
+            if subject_response.type == SubjectType.CHARACTER:
                 subject = Character(
                     name=subject_response.name,
                     description=subject_response.description,
                     age=subject_response.age,
                     gender=subject_response.gender,
                 )
-            if subject_response.type == "environment":
+            if subject_response.type == SubjectType.ENVIRONMENT:
                 subject = Environment(
                     name=subject_response.name,
                     description=subject_response.description,

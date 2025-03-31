@@ -1,9 +1,16 @@
-from typing import Optional, Literal
-from common.genre import Genre
+from typing import Optional
+from enum import StrEnum
+
 from pydantic import BaseModel
 
+from common.genre import Genre
+
+class LineType(StrEnum):
+    DIALOGUE = "dialogue"
+    NARRATION = "narration"
+
 class Line(BaseModel):
-    type: Literal["dialogue", "narration"]
+    type: LineType
     character_id: Optional[int]
     line: str
 

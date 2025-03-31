@@ -19,12 +19,10 @@ class VisualService:
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     def _get_decription_simplification_prompt(self, description: str) -> str:
-        return f''''**Translate the following description to English and keep it under 400 words:  
-"{description}"**
+        return f''''Improve the following description so it can be used as a high-quality text-to-image prompt. Keep it under 400 words, using plain and clear English:
+{description}
 
-- Preserve the original meaning and key visual elements.  
-- Do not add any new information or context.  
-- Return only the translated description, with no extra text or explanations.
+**Do not add any new elements or remove important visual features**
 '''
     
     async def _simplify_scene_description(self, description: str) -> str:
@@ -35,11 +33,7 @@ class VisualService:
 
     async def _get_image_generation_prompt(self, scene: Scene, style: Style) -> str:
         simplified_description = await self._simplify_scene_description(scene.visual_description)
-        return f'''Generate a scene in {style} style with the following description:
-{simplified_description}
-
-Make sure the characteres are naturaly and coherently acting.
-'''
+        return f'''In a {style} style scene. {simplified_description}'''
     
     async def generate_scene_visual(self, scene: Scene, style: Style, image_file_path: str) -> Visual:
         try:

@@ -5,7 +5,7 @@ import os
 from tts.tts import TTS, SpeechGenerationOptions, SoundEffectGenerationOptions
 from stt.stt import STT
 from ttt.ttt import TTT, Chat, ChatOptions
-from script.script import Line
+from script.script import Line, LineType
 from story.story import Subject, Character
 from audio.exceptions import AudioGenerationError
 from audio.audio import LineAudio, SoundEffectAudio
@@ -36,18 +36,20 @@ class AudioService:
 
     def _get_sound_effects_description_prompt(self, lines_audios: list[LineAudio]) -> str:
         transcription = '\n'.join([f'{line_audio.type}: {self._format_line_audio_for_sound_effects_desctiption_prompt(line_audio)}' for line_audio in lines_audios])
-        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of sound effects and an ambient sound that match both the transcription and the visual.
+        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of sound effects and ambient sounds that match both the transcription and the visual.
 
 You will be provided with:
 
-1. A transcription, segmented by word in the format: (word, start_time, end_time).  
+1. A transcription, segmented by word in the format: `(word, start_time, end_time)`.  
 2. An image that visually describes the scene.
 
 Your task is to output a JSON. Each element must include:
 
-- **"sound_effect"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.
-- **"start_time"**: the precise float (in seconds) when the sound begins.
+- **"sound_effect"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.  
+- **"start_time"**: the precise float (in seconds) when the sound begins.  
 - **"end_time"**: the precise float (in seconds) when the sound ends. The duration must be at least 1.0 second and at most 22.0 seconds.
+
+---
 
 ### Rules
 
@@ -55,14 +57,19 @@ Your task is to output a JSON. Each element must include:
 - Only add sound effects if they are clearly necessary, with **focus on key sounds explicitly mentioned in the transcription**.  
   **Example**:  
   If the transcription says: *"She paused as the rain tapped softly against the windowpane,"* then a sound effect like *"gentle raindrops hitting a glass window"* is appropriate.  
-- Do not create more than **4 sound effects** per scene.
-- Use the image to define a single **ambient background sound** that plays continuously from the beginning to the end of the scene.
-- **Every scene must have one ambient sound**. This background sound should reflect the general atmosphere based on the image and must **cover the full duration** of the scene.
-- Do **not** include any human voice, spoken words, names, pronouns, or music in the sound effect descriptions.
-- All sound effects, including ambient, must have durations **between 1.0 and 22.0 seconds**.
+- Use the image to identify **ambient or environmental sounds** that should be present throughout the scene, such as a wall clock ticking, distant traffic, or forest birdsong.
+- These ambient sounds can **overlap** with each other and with specific sound effects.
+- Ambient or persistent environmental sounds must have **natural durations** based on context. 
+  **Example**:  
+  If there's a clock in the scene, a ticking clock should be heard throughout the scene, not for a brief moment, because in this context a clock is a persistent object in the environment.
+- Do not include any human voice, spoken words, names, pronouns, or music in the sound effect descriptions.
+- All sound effects, including ambient ones, must have durations **between 1.0 and 22.0 seconds**.
+- Do not create more than **4 sound effects**.
+
+---
 
 ### Transcription  
-{transcription or "This scene has no transcription. Generate only the ambient sound using the image."}
+{transcription or "This scene has no transcription. Generate only ambient/environmental sounds using the image."}
 '''
 
     async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
@@ -120,7 +127,7 @@ Your task is to output a JSON. Each element must include:
         try:
             async with self.semaphore:
                 options = SpeechGenerationOptions()
-                if line.type == "dialogue":
+                if line.type == LineType.DIALOGUE:
                     character: Character = subjects[str(line.character_id)]
                     if not character.voice_id:
                         self.logger.info(f"Getting voice for character {character.name}")

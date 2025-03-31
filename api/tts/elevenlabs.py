@@ -4,7 +4,7 @@ import random
 from tts.tts import SpeechGenerationOptions, SoundEffectGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
 from elevenlabs.types import Voice
-from story.story import Character
+from story.story import Character, CharacterGender
 
 class ElevenLabsModel(Enum):
     ELEVEN_MULTILINGUAL_V2 = "eleven_multilingual_v2"
@@ -57,9 +57,9 @@ class ElevenLabs:
             return "old"
     
     def _get_voice_gender(self, character: Character) -> str:
-        if character.gender == "male":
+        if character.gender == CharacterGender.MALE:
             return "male"
-        if character.gender == "female":
+        if character.gender == CharacterGender.FEMALE:
             return "female"
         return "neutral"
     
@@ -83,6 +83,8 @@ class ElevenLabs:
                 if 'language' not in voice.labels or voice.labels['language'] == language.split('-')[0]:
                     voice_id = voice.voice_id
                 if voice.labels['age'] == self._get_voice_age(character):
+                    voice_id = voice.voice_id
+                if voice.labels['use_case'] == 'character':
                     return voice.voice_id
             if not response.has_more:
                 break

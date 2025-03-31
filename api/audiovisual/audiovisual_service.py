@@ -31,7 +31,7 @@ class AudioVisualService:
         os.makedirs(output_path, exist_ok=True)
         sound_effects_audios = await self.audio_service.generate_sound_effects_audios(lines_audios, scene_base64_image, output_path)
         return CompositeAudioClip([audio.clip.with_effects([
-            MultiplyVolume(0.5), 
+            MultiplyVolume(0.8), 
             AudioFadeIn(self._get_audio_fade_duration(audio.clip)), 
             AudioFadeOut(self._get_audio_fade_duration(audio.clip))
         ]) for audio in sound_effects_audios])

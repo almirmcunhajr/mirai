@@ -1,5 +1,5 @@
 from pydantic import Field, BaseModel
-from typing import Optional, Literal, Union, Annotated
+from typing import Optional, Union, Annotated, Literal
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from enum import StrEnum
@@ -13,18 +13,26 @@ class Style(StrEnum):
     REALISTIC = "realistic"
     ANIME = "anime"
 
+class SubjectType(StrEnum):
+    ENVIRONMENT = "environment"
+    CHARACTER = "character"
+
+class CharacterGender(StrEnum):
+    MALE = "male"
+    FEMALE = "female"
+
 class Subject(BaseModel):
-    type: str
+    type: SubjectType
     name: str
     description: str
 
 class Environment(Subject):
-    type: Literal["environment"] = "environment"
+    type: Literal[SubjectType.ENVIRONMENT] = SubjectType.ENVIRONMENT
       
 class Character(Subject):
-    type: Literal["character"] = "character"
+    type: Literal[SubjectType.CHARACTER] = SubjectType.CHARACTER
     age: int
-    gender: Literal["male", "female"]
+    gender: CharacterGender
     voice_id: Optional[str] = None
 
 class PathNode(BaseModel):
