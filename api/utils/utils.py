@@ -2,6 +2,8 @@ import pycountry
 from typing import Optional
 import requests
 import base64
+import string
+import random
 
 def validate_language(language_code: str) -> Optional[str]:
     language_code = language_code.lower()
@@ -19,3 +21,7 @@ def url_to_base64(url: str) -> str:
     image_data = response.content
     base64_image = base64.b64encode(image_data).decode('ascii')
     return base64_image
+
+def generate_random_string(length=10):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))

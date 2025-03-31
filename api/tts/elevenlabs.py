@@ -1,7 +1,7 @@
 from enum import Enum
 import random
 
-from tts.tts import SpeechGenerationOptions
+from tts.tts import SpeechGenerationOptions, SoundEffectGenerationOptions
 from elevenlabs.client import AsyncElevenLabs as ElevenLabsClient
 from elevenlabs.types import Voice
 from story.story import Character
@@ -17,17 +17,29 @@ class ElevenLabs:
         self.model = model
         self.client = ElevenLabsClient(api_key=api_key)
 
+    async def to_sound_effect(self, 
+        text: str,
+        options: SoundEffectGenerationOptions = SoundEffectGenerationOptions()
+    ) -> bytes:
+        audio_generator = self.client.text_to_sound_effects.convert(
+            text=text,
+            duration_seconds=options.duration,
+        )
+
+        audio_chunks = []
+        async for chunk in audio_generator:
+            audio_chunks.append(chunk)
+        
+        return b''.join(audio_chunks) 
+
     async def to_speech(self, 
         text: str, 
-        options: SpeechGenerationOptions = SpeechGenerationOptions(
-            output_format=ElevenLabsOutputFormat.MP3_44100_128.value
-        )
+        options: SpeechGenerationOptions = SpeechGenerationOptions()
     ) -> bytes:
         audio_generator = self.client.text_to_speech.convert(
             text=text,
             voice_id=options.voice,
             model_id=self.model.value,
-            output_format=options.output_format
         )
         
         audio_chunks = []
@@ -63,6 +75,8 @@ class ElevenLabs:
                 if voice.voice_id in used_voices:
                     continue
                 if voice.labels['gender'] != self._get_voice_gender(character):
+                    continue
+                if voice.labels['use_case'] == 'asmr':
                     continue
                 if not voice_id:
                     voice_id = voice.voice_id

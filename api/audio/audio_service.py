@@ -2,18 +2,120 @@ import logging
 import asyncio
 import os
 
-from tts.tts import TTS, SpeechGenerationOptions
+from tts.tts import TTS, SpeechGenerationOptions, SoundEffectGenerationOptions
+from stt.stt import STT
+from ttt.ttt import TTT, Chat, ChatOptions
 from script.script import Line
-from story.story import StoryNode, Subject, Character
+from story.story import Subject, Character
 from audio.exceptions import AudioGenerationError
+from audio.audio import LineAudio, SoundEffectAudio
+from common.base_model_no_extra import BaseModelNoExtra
+from utils.utils import generate_random_string
+
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+
+class SoundEffectDescriptionRespone(BaseModelNoExtra):
+    sound_effect: str
+    start_time: float
+    end_time: float
+
+class SoundEffectsDescriptionsResponse(BaseModelNoExtra):
+    sound_effects_descriptions: list[SoundEffectDescriptionRespone]
 
 class AudioService:
-    def __init__(self, tts: TTS, max_concurrent_requests: int = 2):
+    def __init__(self, tts: TTS, stt: STT, ttt: TTT, max_concurrent_requests: int = 2):
         self.tts = tts
+        self.stt = stt
+        self.ttt = ttt
         self.logger = logging.getLogger(__name__)
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
-    async def _generate_and_save_line(self, language: str, subjects: dict[str, Subject], line: Line, scene_id: str, line_index: int, output_dir: str) -> tuple[str, str, int]:
+    def _format_line_audio_for_sound_effects_desctiption_prompt(self, line_audio: LineAudio) -> str:
+        line_start = line_audio.clip.start
+        return ", ".join([f'({word.text}, {word.start+line_start}, {word.end+line_start})' for word in line_audio.transcription])
+
+    def _get_sound_effects_description_prompt(self, lines_audios: list[LineAudio]) -> str:
+        transcription = '\n'.join([f'{line_audio.type}: {self._format_line_audio_for_sound_effects_desctiption_prompt(line_audio)}' for line_audio in lines_audios])
+        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of sound effects and an ambient sound that match both the transcription and the visual.
+
+You will be provided with:
+
+1. A transcription, segmented by word in the format: (word, start_time, end_time).  
+2. An image that visually describes the scene.
+
+Your task is to output a JSON. Each element must include:
+
+- **"sound_effect"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.
+- **"start_time"**: the precise float (in seconds) when the sound begins.
+- **"end_time"**: the precise float (in seconds) when the sound ends. The duration must be at least 1.0 second and at most 22.0 seconds.
+
+### Rules
+
+- Use the transcription to identify **specific physical actions or events** that require sound effects (e.g., "a door slams", "a car drives by", "a glass breaks").
+- Only add sound effects if they are clearly necessary, with **focus on key sounds explicitly mentioned in the transcription**.  
+  **Example**:  
+  If the transcription says: *"She paused as the rain tapped softly against the windowpane,"* then a sound effect like *"gentle raindrops hitting a glass window"* is appropriate.  
+- Do not create more than **4 sound effects** per scene.
+- Use the image to define a single **ambient background sound** that plays continuously from the beginning to the end of the scene.
+- **Every scene must have one ambient sound**. This background sound should reflect the general atmosphere based on the image and must **cover the full duration** of the scene.
+- Do **not** include any human voice, spoken words, names, pronouns, or music in the sound effect descriptions.
+- All sound effects, including ambient, must have durations **between 1.0 and 22.0 seconds**.
+
+### Transcription  
+{transcription or "This scene has no transcription. Generate only the ambient sound using the image."}
+'''
+
+    async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
+        try:
+            async with self.semaphore:
+                duration = min(max(end-start, 0.5), 22)
+                options = SoundEffectGenerationOptions(duration=duration)
+                self.logger.info(f"Generating sound effect audio with description: {description}")
+                audio_data = await self.tts.to_sound_effect(description, options)
+
+                with open(audio_file_path, "wb") as f:
+                    f.write(audio_data)
+
+                self.logger.info(f"Saved sound effect audio file to {audio_file_path}")
+
+                return SoundEffectAudio(
+                    clip=AudioFileClip(audio_file_path).with_start(start),
+                )
+        except Exception as e:
+            raise AudioGenerationError(f"Failed to generate sound effect audio: {str(e)}")
+
+    async def generate_sound_effects_audios(self, lines_audios: list[LineAudio], scene_base64_image: str, dir_path: str) -> list[SoundEffectAudio]:
+        chat = Chat()
+        prompt = self._get_sound_effects_description_prompt(lines_audios)
+        chat.add_user_message([
+            {
+                "type": "input_text",
+                "text": prompt
+            },
+            {
+                "type": "input_image",
+                "image_url": f"data:image/jpeg;base64,{scene_base64_image}",
+                "detail": "low"
+            }
+        ])
+        chat_options = ChatOptions(response_format=SoundEffectsDescriptionsResponse)
+        sound_effects_desctiptions_response: SoundEffectsDescriptionsResponse = await self.ttt.chat(chat, chat_options)
+
+        tasks = [
+            self._generate_sound_effect_audio(
+                sound_effect_description.sound_effect,
+                sound_effect_description.start_time,
+                sound_effect_description.end_time,
+                os.path.join(dir_path, f"{generate_random_string()}.mp3")
+            )
+            for i, sound_effect_description in enumerate(sound_effects_desctiptions_response.sound_effects_descriptions)
+        ]
+        sound_effects_audios = await asyncio.gather(*tasks)
+        self.logger.info(f"Generated {len(sound_effects_audios)} sound effects audios")
+
+        return sound_effects_audios
+
+    async def generate_line_audio(self, line: Line, language: str, subjects: dict[str, Subject], audio_file_path: str) -> LineAudio:
         characters = [subject for subject in subjects.values() if isinstance(subject, Character)]
         try:
             async with self.semaphore:
@@ -21,44 +123,29 @@ class AudioService:
                 if line.type == "dialogue":
                     character: Character = subjects[str(line.character_id)]
                     if not character.voice_id:
-                        self.logger.info(f"Getting voice for character {character.name} in scene {scene_id} line {line_index}")
+                        self.logger.info(f"Getting voice for character {character.name}")
                         used_voices = set([c.voice_id for c in characters if c.voice_id is not None])
                         character.voice_id = await self.tts.get_voice(language, used_voices, character)
                     options.voice = character.voice_id
                 else:
                     options.voice = await self.tts.get_voice(language, [], None)
                 
-                self.logger.info(f"Generating {line.type} for scene {scene_id} line {line_index} with voice {options.voice}")
+                self.logger.info(f"Generating {line.type} audio with voice {options.voice}")
                 audio_data = await self.tts.to_speech(line.line, options)
                 
-                file_path = os.path.join(output_dir, f"{scene_id}_{line_index}.mp3")
-                with open(file_path, "wb") as f:
+                with open(audio_file_path, "wb") as f:
                     f.write(audio_data)
                 
-                self.logger.info(f"Saved {line.type} for scene {scene_id} line {line_index} to {file_path}")
-                return file_path, scene_id, line_index
+                self.logger.info(f"Saved {line.type} audio file to {audio_file_path}")
+
+                self.logger.info(f'Generating line transcription')
+                transctiption = await self.stt.transcribe(audio_file_path)
+
+                return LineAudio(
+                    clip=AudioFileClip(audio_file_path),
+                    transcription=transctiption,
+                    type=line.type
+                )
                     
         except Exception as e:
-            self.logger.error(f"Failed to generate {line.type} for scene {scene_id} line {line_index}: {str(e)}")
-            raise AudioGenerationError(f"Failed to generate {line.type} for scene {scene_id} line {line_index}: {str(e)}")
-        
-    def _group_audio_paths_by_scene(self, audio_paths: list[tuple[str, str, int]]) -> dict[str, list[str]]:
-        sorted_audio_paths = sorted(audio_paths, key=lambda x: (x[1], x[2]))
-
-        scenes_lines_audio_paths = {}
-        for file_path, scene_id, _ in sorted_audio_paths:
-            if scene_id not in scenes_lines_audio_paths:
-                scenes_lines_audio_paths[scene_id] = []
-            scenes_lines_audio_paths[scene_id].append(file_path)
-        return scenes_lines_audio_paths
-
-    async def generate_scenes_lines(self, story_node: StoryNode, output_dir: str) -> dict[str, list[str]]:
-        os.makedirs(output_dir, exist_ok=True)
-        
-        tasks = [
-            self._generate_and_save_line(story_node.script.language, story_node.subjects, line, scene_id, line_index, output_dir)
-            for scene_id, line, line_index in ((scene.id, line, line_index) for scene in story_node.script.scenes for line_index, line in enumerate(scene.lines))
-        ]
-        audio_paths = await asyncio.gather(*tasks)
-        
-        return self._group_audio_paths_by_scene(audio_paths)
+            raise AudioGenerationError(f"Failed to generate line audio: {str(e)}")

@@ -25,7 +25,7 @@ class Character(Subject):
     type: Literal["character"] = "character"
     age: int
     gender: Literal["male", "female"]
-    voice_id: str = None
+    voice_id: Optional[str] = None
 
 class PathNode(BaseModel):
     script: Script

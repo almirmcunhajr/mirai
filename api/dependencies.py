@@ -5,10 +5,12 @@ from fastapi import Depends
 from ttt.openai import OpenAI as OpenAITTT
 from tti.openai import OpenAI as OpenAITTI
 from tts.openai import OpenAI as OpenAITTS
+from stt.openai import OpenAI as OpenAISTT
 from tti.together import Together as TogetherTTI
 from tts.tts import TTS
 from tti.tti import TTI
 from ttt.ttt import TTT
+from stt.stt import STT
 from tts.elevenlabs import ElevenLabs
 from script.script_service import ScriptService
 from visual.visual_service import VisualService
@@ -48,6 +50,10 @@ def get_openai_tti(api_key: str = Depends(get_openai_api_key)) -> OpenAITTI:
     return OpenAITTI(api_key=api_key)
 
 @lru_cache()
+def get_openai_stt(api_key: str = Depends(get_openai_api_key)) -> OpenAISTT:
+    return OpenAISTT(api_key=api_key)
+
+@lru_cache()
 def get_together_tti(api_key: str = Depends(get_together_api_key)) -> TogetherTTI:
     return TogetherTTI(api_key=api_key)
 
@@ -64,8 +70,12 @@ def get_visual_service(tti: TTI = Depends(get_together_tti), ttt: TTT = Depends(
     return VisualService(tti, ttt)
 
 @lru_cache()
-def get_audio_service(tts: TTS = Depends(get_elevenlabs_tts)) -> AudioService:
-    return AudioService(tts)
+def get_audio_service(
+    tts: TTS = Depends(get_elevenlabs_tts),
+    stt: STT = Depends(get_openai_stt),
+    ttt: TTT = Depends(get_openai_ttt),
+) -> AudioService:
+    return AudioService(tts, stt, ttt)
 
 @lru_cache()
 def get_audiovisual_service(

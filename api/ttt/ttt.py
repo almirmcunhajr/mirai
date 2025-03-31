@@ -1,4 +1,4 @@
-from typing import Protocol, Type
+from typing import Protocol, Type, Any
 from enum import StrEnum
 from common.base_model_no_extra import BaseModelNoExtra
 
@@ -11,12 +11,12 @@ class ChatMessageRole(StrEnum):
 
 class ChatMessage(BaseModelNoExtra):
     role: ChatMessageRole
-    content: str
+    content: Any
 
 class Chat(BaseModelNoExtra):
     messages: list[ChatMessage] = []
 
-    def add_user_message(self, message: str):
+    def add_user_message(self, message):
         self.messages.append(ChatMessage(role=ChatMessageRole.USER, content=message))
 
     def add_assistant_response(self, message: str):

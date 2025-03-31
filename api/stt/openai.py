@@ -5,7 +5,7 @@ from stt.stt import TranscriptionWord
 class OpenAIModel(Enum):
     WHISPER_1 = "whisper-1"
 
-class OpenAISTT:
+class OpenAI:
     def __init__(self, api_key: str, model: OpenAIModel = OpenAIModel.WHISPER_1):
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key)

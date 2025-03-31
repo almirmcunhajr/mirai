@@ -249,7 +249,7 @@ Each `visual_description` must include:
 
 ### 🧾 Format Rules
 
-- Always use the `#<id>` format when referring to both characters and environments  
+- Do not include character or environment names — always use their #<id> reference only
 - Write in natural, cinematic prose — not a list or structured object  
 - Keep the description tightly focused on what is **visually present** in the scene  
 - Avoid internal thoughts or narrative exposition — this is a **visual** frame only  
