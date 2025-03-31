@@ -48,6 +48,7 @@ class StoryNode(BaseModel):
     parent_id: Optional[UUID] = None
     children: list[UUID] = []
     video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     chat: Chat
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
