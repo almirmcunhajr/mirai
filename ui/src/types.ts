@@ -16,13 +16,14 @@ export interface Story {
   genre: Genre;
   currentNode: string;
   lastPlayedAt: Date;
-  thumbnail: string;
+  root_node_id: string;
 }
 
 export interface StoryNode {
   id: string;
   content: string;
   videoUrl: string;
+  thumbnail_url: string;
   decision?: string;
   parentId: string | null;
   children: StoryNode[];

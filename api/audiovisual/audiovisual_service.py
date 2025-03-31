@@ -51,8 +51,7 @@ class AudioVisualService:
     async def _generate_scene_visual(self, scene: Scene, style: Style, output_path: str) -> Visual:
         os.makedirs(output_path, exist_ok=True)
         image_path = os.path.join(output_path, f"{scene.id}.png")
-        visual = await self.visual_service.generate_scene_visual(scene, style, image_path)
-        return visual.clip, visual.base64_image
+        return await self.visual_service.generate_scene_visual(scene, style, image_path)
     
     async def _generate_scenes(self, scene: Scene, language: str, style: Style, subjects: dict[str, Subject], output_path: str) -> Visual:
         visual, lines_audio =  await asyncio.gather(
@@ -69,7 +68,7 @@ class AudioVisualService:
         ]) for audio in sound_effects_audios])
         audio_clip = CompositeAudioClip([lines_audio_clip, sound_effects_audio_clip])
 
-        visual.clip.with_duration(audio_clip.duration).with_audio(audio_clip)
+        visual.clip = visual.clip.with_duration(audio_clip.duration).with_audio(audio_clip)
 
         return visual
 

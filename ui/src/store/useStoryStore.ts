@@ -57,8 +57,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           title: 'Creating your story...',
           genre,
           currentNode: 'pending',
-          lastPlayedAt: new Date(),
-          thumbnail: ''
+          lastPlayedAt: new Date()
         }
       });
 
@@ -74,6 +73,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
+          thumbnail_url: node.thumbnail_url,
           decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
@@ -84,7 +84,6 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
             return null;
           }).filter(Boolean) as StoryNode[]
         };
-        
         nodeMap[node.id] = transformedNode;
         return transformedNode;
       };
@@ -131,6 +130,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
+          thumbnail_url: node.thumbnail_url,
           decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
@@ -141,7 +141,6 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
             return null;
           }).filter(Boolean) as StoryNode[]
         };
-        
         nodeMap[node.id] = transformedNode;
         return transformedNode;
       };
@@ -228,6 +227,7 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
           id: node.id,
           content: node.script?.frames?.[0]?.narration || '',
           videoUrl: node.video_url,
+          thumbnail_url: node.thumbnail_url,
           decision: node.decision,
           parentId: node.parent_id,
           children: node.children.map((childId: string) => {
@@ -238,7 +238,6 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
             return null;
           }).filter(Boolean) as StoryNode[]
         };
-        
         nodeMap[node.id] = transformedNode;
         return transformedNode;
       };
@@ -251,7 +250,6 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
       
       set({ storyNodes: nodeMap });
     } catch (error) {
-      console.error('Decision error:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to make decision',
         isLoading: false 
@@ -282,7 +280,46 @@ export const useStoryStore = create<StoryState>((set: any, get: any) => ({
     try {
       set({ isLoading: true, error: null });
       const stories = await api.listStories();
-      set({ stories, isLoading: false });
+      
+      // Load story nodes for each story
+      const nodeMap: Record<string, StoryNode> = {};
+      for (const story of stories) {
+        const storyTree = await api.getStoryTree(story.id);
+        
+        // Transform nodes into our format
+        const transformNode = (node: any): StoryNode => {
+          const transformedNode: StoryNode = {
+            id: node.id,
+            content: node.script?.frames?.[0]?.narration || '',
+            videoUrl: node.video_url,
+            thumbnail_url: node.thumbnail_url,
+            decision: node.decision,
+            parentId: node.parent_id,
+            children: node.children.map((childId: string) => {
+              const childNode = storyTree.nodes.find((n: any) => n.id === childId);
+              if (childNode) {
+                return transformNode(childNode);
+              }
+              return null;
+            }).filter(Boolean) as StoryNode[]
+          };
+          nodeMap[node.id] = transformedNode;
+          return transformedNode;
+        };
+
+        // Transform all nodes starting from the root
+        const rootNode = storyTree.nodes.find((n: any) => n.id === storyTree.root_node_id);
+        if (rootNode) {
+          transformNode(rootNode);
+        }
+      }
+      
+      // Set the currentNode to root_node_id for each story
+      const storiesWithCurrentNode = stories.map(story => ({
+        ...story,
+        currentNode: story.root_node_id
+      }));
+      set({ stories: storiesWithCurrentNode, storyNodes: nodeMap, isLoading: false });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch stories',
