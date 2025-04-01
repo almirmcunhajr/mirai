@@ -23,7 +23,7 @@ ui/provision: ui/build ui/tag ui/push
 		--port=${UI_PORT} \
 		--memory 2Gi \
 		--cpu 1 \
-		--timeout 10m \
+		--timeout 14m \
 
 ui/deploy: ui/build ui/tag ui/push
 	gcloud run deploy mirai-ui \
