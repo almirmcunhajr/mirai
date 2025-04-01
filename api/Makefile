@@ -23,6 +23,7 @@ api/provision: api/build api/tag api/push
 		--add-volume-mount volume=mirai-videos,mount-path=/app/output/videos/ \
 		--memory 4Gi \
 		--cpu 2 \
+		--timeout 10m \
 
 api/deploy: api/build api/tag api/push
 	gcloud run deploy mirai-api \

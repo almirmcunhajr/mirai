@@ -22,7 +22,8 @@ ui/provision: ui/build ui/tag ui/push
 		--env-vars-file ui/env.yaml \
 		--port=${UI_PORT} \
 		--memory 2Gi \
-		--cpu 1
+		--cpu 1 \
+		--timeout 10m \
 
 ui/deploy: ui/build ui/tag ui/push
 	gcloud run deploy mirai-ui \
