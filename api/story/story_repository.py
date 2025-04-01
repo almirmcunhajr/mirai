@@ -26,7 +26,7 @@ class StoryRepository:
 
     async def update(self, story: Story) -> Story:
         await self.collection.update_one(
-            {"id": str(story.id), "user_id": story.user_id},
+            {"id": story.id, "user_id": story.user_id},
             {"$set": story.model_dump()}
         )
         return story
