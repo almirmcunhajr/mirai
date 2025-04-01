@@ -65,11 +65,10 @@ Your task is to output a JSON. Each element must include:
     - Rain or snow (falling droplets or flakes)
     - Fireplaces (crackling fire)
     - Urban environments (distant traffic, crowd murmur)
-  - The background sound must reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
-  - Background sounds should reflect the **overall environment** and **remain consistent** during the scene.
-- You must generate **only one background sound as a combination of all relevant background information in the scene**. It can last up to **22.0 seconds**, or match the full duration of the scene if appropriate.
-  - The background sound must reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
-  - Background sounds should reflect the **overall environment** and **remain consistent** during the scene.
+- You must generate **one and only one background sound** as a **combination of all important background information** from the scene.
+  - The background sound is **required** and must **last the full duration of the scene**, up to a maximum of **22.0 seconds**.
+  - It should reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
+  - Background sounds should feel natural and consistent throughout the scene.
 - You may generate **up to 3 sound effects**. Each must:
   - Be based on a specific, isolated action mentioned in the transcription.
   - Last between **1.0 and 5.0 seconds**.
