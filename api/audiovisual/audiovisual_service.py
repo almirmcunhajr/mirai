@@ -3,7 +3,6 @@ import os
 import tempfile
 import asyncio
 
-from moviepy.video.VideoClip import ImageClip
 from moviepy.video.compositing.CompositeVideoClip import concatenate_videoclips
 from moviepy.audio.AudioClip import CompositeAudioClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
@@ -62,7 +61,7 @@ class AudioVisualService:
 
         lines_audio_clip = CompositeAudioClip([line_audio.clip for line_audio in lines_audio])
         sound_effects_audio_clip = CompositeAudioClip([audio.clip.with_effects([
-            MultiplyVolume(0.8), 
+            MultiplyVolume(0.7), 
             AudioFadeIn(self._get_audio_fade_duration(audio.clip)), 
             AudioFadeOut(self._get_audio_fade_duration(audio.clip))
         ]) for audio in sound_effects_audios])

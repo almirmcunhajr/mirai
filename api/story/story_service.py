@@ -20,7 +20,7 @@ class StoryService:
         self.repository = StoryRepository()
         self.logger = logging.getLogger(__name__)
 
-    async def create_story(self, genre: Genre, language_code: str, style: Style) -> Story:
+    async def create_story(self, genre: Genre, language_code: str, style: Style, user_id: str) -> Story:
         try:
             chat = Chat()
             script, subjects = await self.script_service.generate(chat=chat, genre=genre, language_code=language_code)
@@ -33,6 +33,7 @@ class StoryService:
                 language=language_code,
                 root_node_id=root_node.id,
                 nodes=[root_node],
+                user_id=user_id
             )
 
             await self._generate_video_for_node(story, root_node)
@@ -42,9 +43,9 @@ class StoryService:
             self.logger.error(f"Failed to create story: {str(e)}", exc_info=True)
             raise StoryGenerationError(str(e))
 
-    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str) -> Story:
+    async def create_branch(self, story_id: UUID, parent_node_id: UUID, decision: str, user_id: str) -> Story:
         try:
-            story = await self.repository.get_by_id(story_id)
+            story = await self.repository.find_by_id(story_id, user_id)
             if not story:
                 raise StoryNotFoundError(f"Story with ID {story_id} not found")
             
@@ -76,27 +77,24 @@ class StoryService:
             
             await self._generate_video_for_node(story, new_node)
             
-            result = await self.repository.update(story)
-            if not result:
-                raise StoryNotFoundError(f"Story with ID {story_id} not found")
-            return result
+            return await self.repository.update(story)
         except StoryNotFoundError:
             raise
         except Exception as e:
             self.logger.error(f"Failed to create branch: {str(e)}", exc_info=True)
             raise BranchCreationError(str(e))
 
-    async def get_story(self, story_id: UUID) -> Story:
-        story = await self.repository.get_by_id(story_id)
+    async def get_story(self, story_id: UUID, user_id: str) -> Story:
+        story = await self.repository.find_by_id(story_id, user_id)
         if not story:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
         return story
 
-    async def list_stories(self) -> List[Story]:
-        return await self.repository.list_stories()
+    async def list_stories(self, user_id: str) -> List[Story]:
+        return await self.repository.find_all_by_user(user_id)
 
-    async def delete_story(self, story_id: UUID) -> bool:
-        success = await self.repository.delete(story_id)
+    async def delete_story(self, story_id: UUID, user_id: str) -> bool:
+        success = await self.repository.delete(story_id, user_id)
         if not success:
             raise StoryNotFoundError(f"Story with ID {story_id} not found")
         return True

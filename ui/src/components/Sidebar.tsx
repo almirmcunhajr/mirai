@@ -1,9 +1,15 @@
 import React from 'react';
-import { Home, PlusCircle } from 'lucide-react';
+import { Home, PlusCircle, LogOut, User } from 'lucide-react';
 import { useStoryStore } from '../store/useStoryStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const Sidebar: React.FC = () => {
   const { setCurrentView } = useStoryStore();
+  const { user, logout } = useAuthStore();
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="fixed left-0 top-0 h-screen w-16 md:w-64 bg-black flex flex-col">
@@ -28,6 +34,24 @@ export const Sidebar: React.FC = () => {
           <span className="hidden md:block">Create New Story</span>
         </button>
       </nav>
+
+      <div className="p-4 border-t border-gray-800">
+        <div className="flex items-center gap-4 p-3 text-gray-400">
+          <User size={24} />
+          <div className="hidden md:block">
+            <p className="text-white font-medium">{user.name}</p>
+            <p className="text-sm text-gray-500">{user.email}</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-4 p-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors mt-2"
+        >
+          <LogOut size={24} />
+          <span className="hidden md:block">Logout</span>
+        </button>
+      </div>
     </div>
   );
 };

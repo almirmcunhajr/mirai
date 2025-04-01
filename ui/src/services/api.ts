@@ -4,21 +4,35 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export class ApiService {
   private static instance: ApiService;
+  private token: string | null = null;
+
   private constructor() {}
 
-  public static getInstance(): ApiService {
+  static getInstance(): ApiService {
     if (!ApiService.instance) {
       ApiService.instance = new ApiService();
     }
     return ApiService.instance;
   }
 
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
+  private getHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    return headers;
+  }
+
   async createStory(genre: Genre, languageCode: string = 'pt-BR'): Promise<Story> {
     const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify({ genre, language_code: languageCode }),
     });
 
@@ -29,38 +43,22 @@ export class ApiService {
     return response.json();
   }
 
-  async createBranch(storyId: string, parentNodeId: string, decision: string, languageCode: string = 'pt-BR'): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/branches`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        parent_node_id: parentNodeId,
-        decision,
-        language_code: languageCode,
-      }),
+  async getStory(storyId: string): Promise<Story> {
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, {
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to create branch' }));
-      throw new Error(error.message || 'Failed to create branch');
+      throw new Error('Failed to get story');
     }
 
-    const data = await response.json();
-    return data;
-  }
-
-  async getStoryTree(storyId: string): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/stories/${storyId}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch story');
-    }
     return response.json();
   }
 
   async listStories(): Promise<Story[]> {
-    const response = await fetch(`${API_BASE_URL}/stories`);
+    const response = await fetch(`${API_BASE_URL}/stories`, {
+      headers: this.getHeaders(),
+    });
 
     if (!response.ok) {
       throw new Error('Failed to list stories');
@@ -69,19 +67,55 @@ export class ApiService {
     return response.json();
   }
 
-  async deleteStory(storyId: string): Promise<boolean> {
+  async deleteStory(storyId: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, {
       method: 'DELETE',
+      headers: this.getHeaders(),
     });
 
     if (!response.ok) {
       throw new Error('Failed to delete story');
     }
+  }
+
+  async createBranch(storyId: string, parentNodeId: string, decision: string): Promise<Story> {
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/branches`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ parent_node_id: parentNodeId, decision }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create branch');
+    }
 
     return response.json();
   }
 
-  getVideoUrl(storyId: string, nodeId: string): string {
-    return `${API_BASE_URL}/videos/stories/${storyId}/nodes/${nodeId}`;
+  async getStoryTree(storyId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, {
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch story');
+    }
+    return response.json();
+  }
+
+  async getVideoUrl(storyId: string, nodeId: string): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/videos/stories/${storyId}/nodes/${nodeId}`, {
+      headers: {
+        'Authorization': this.token ? `Bearer ${this.token}` : '',
+        'Accept': 'video/mp4',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch video');
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    return url;
   }
 } 

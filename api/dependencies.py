@@ -1,6 +1,7 @@
 from functools import lru_cache
 import os
 from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 
 from ttt.openai import OpenAI as OpenAITTT
 from tti.openai import OpenAI as OpenAITTI
@@ -18,6 +19,10 @@ from audio.audio_service import AudioService
 from audiovisual.audiovisual_service import AudioVisualService
 from story.story_service import StoryService
 from video.video_service import VideoService
+from auth.auth_service import AuthService
+from user.user import User
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_openai_api_key() -> str:
     api_key = os.getenv("OPENAI_API_KEY")
@@ -36,6 +41,18 @@ def get_elevenlabs_api_key() -> str:
     if not api_key:
         raise ValueError("ElevenLabs API key not configured")
     return api_key
+
+def get_google_client_id() -> str:
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise ValueError("Google Client ID not configured")
+    return client_id
+
+def get_jwt_secret() -> str:
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        raise ValueError("JWT Secret not configured")
+    return secret
 
 @lru_cache()
 def get_openai_ttt(api_key: str = Depends(get_openai_api_key)) -> OpenAITTT:
@@ -93,4 +110,20 @@ def get_story_service(
 
 @lru_cache()
 def get_video_service() -> VideoService:
-    return VideoService() 
+    return VideoService()
+
+@lru_cache()
+def get_auth_service(
+    google_client_id: str = Depends(get_google_client_id),
+    jwt_secret: str = Depends(get_jwt_secret)
+) -> AuthService:
+    return AuthService(
+        google_client_id=google_client_id,
+        jwt_secret=jwt_secret
+    )
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    auth_service: AuthService = Depends(get_auth_service)
+) -> User:
+    return await auth_service.get_current_user(token) 

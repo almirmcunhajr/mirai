@@ -10,17 +10,17 @@ from story.story import Subject, Character
 from audio.exceptions import AudioGenerationError
 from audio.audio import LineAudio, SoundEffectAudio
 from common.base_model_no_extra import BaseModelNoExtra
-from utils.utils import generate_random_string
+from utils.utils import generate_random_string, exponential_backoff_call
 
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 
-class SoundEffectDescriptionRespone(BaseModelNoExtra):
-    sound_effect: str
+class SoundDescriptionRespone(BaseModelNoExtra):
+    description: str
     start_time: float
     end_time: float
 
 class SoundEffectsDescriptionsResponse(BaseModelNoExtra):
-    sound_effects_descriptions: list[SoundEffectDescriptionRespone]
+    sound_effects_descriptions: list[SoundDescriptionRespone]
 
 class AudioService:
     def __init__(self, tts: TTS, stt: STT, ttt: TTT, max_concurrent_requests: int = 2):
@@ -40,14 +40,14 @@ class AudioService:
 
 You will be provided with:
 
-1. A transcription, segmented by word in the format: `(word, start_time, end_time)`.  
+1. A transcription, segmented by word in the format: `(word, start_time, end_time)`  
 2. An image that visually describes the scene.
 
 Your task is to output a JSON. Each element must include:
 
-- **"sound_effect"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.  
+- **"description"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.  
 - **"start_time"**: the precise float (in seconds) when the sound begins.  
-- **"end_time"**: the precise float (in seconds) when the sound ends. The duration must be at least 1.0 second and at most 22.0 seconds.
+- **"end_time"**: the precise float (in seconds) when the sound ends.
 
 ---
 
@@ -57,19 +57,17 @@ Your task is to output a JSON. Each element must include:
 - Only add sound effects if they are clearly necessary, with **focus on key sounds explicitly mentioned in the transcription**.  
   **Example**:  
   If the transcription says: *"She paused as the rain tapped softly against the windowpane,"* then a sound effect like *"gentle raindrops hitting a glass window"* is appropriate.  
-- Use the image to identify **ambient or environmental sounds** that should be present throughout the scene, such as a wall clock ticking, distant traffic, or forest birdsong.
-- These ambient sounds can **overlap** with each other and with specific sound effects.
-- Ambient or persistent environmental sounds must have **natural durations** based on context. 
-  **Example**:  
-  If there's a clock in the scene, a ticking clock should be heard throughout the scene, not for a brief moment, because in this context a clock is a persistent object in the environment.
-- Do not include any human voice, spoken words, names, pronouns, or music in the sound effect descriptions.
-- All sound effects, including ambient ones, must have durations **between 1.0 and 22.0 seconds**.
-- Do not create more than **4 sound effects**.
+- Use the image to identify **a single ambient or environmental sound** that should be present in the background of the scene, such as a wall clock ticking, distant traffic, or forest birdsong.
+- Ambient sounds can **overlap** with specific sound effects and should reflect natural environmental context.  
+- You are allowed to generate **only 1 ambient/background sound** and **a maximum of 3 distinct sound effects**.
+- The ambient/background sound can last up to **22.0 seconds**, matching the full duration of the scene if appropriate.
+- **Each sound effect must have a duration between 1.0 and 5.0 seconds**.
+- Do not include any human voice, spoken words, names, pronouns, or music.
 
 ---
 
 ### Transcription  
-{transcription or "This scene has no transcription. Generate only ambient/environmental sounds using the image."}
+{transcription or "This scene has no transcription. Generate only one ambient/environmental sound using the image."}
 '''
 
     async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
@@ -78,7 +76,7 @@ Your task is to output a JSON. Each element must include:
                 duration = min(max(end-start, 0.5), 22)
                 options = SoundEffectGenerationOptions(duration=duration)
                 self.logger.info(f"Generating sound effect audio with description: {description}")
-                audio_data = await self.tts.to_sound_effect(description, options)
+                audio_data = await exponential_backoff_call(self.tts.to_sound_effect, description, options)
 
                 with open(audio_file_path, "wb") as f:
                     f.write(audio_data)
@@ -110,7 +108,7 @@ Your task is to output a JSON. Each element must include:
 
         tasks = [
             self._generate_sound_effect_audio(
-                sound_effect_description.sound_effect,
+                sound_effect_description.description,
                 sound_effect_description.start_time,
                 sound_effect_description.end_time,
                 os.path.join(dir_path, f"{generate_random_string()}.mp3")
@@ -135,10 +133,9 @@ Your task is to output a JSON. Each element must include:
                         character.voice_id = await self.tts.get_voice(language, used_voices, character)
                     options.voice = character.voice_id
                 else:
-                    options.voice = await self.tts.get_voice(language, [], None)
-                
+                    options.voice = await exponential_backoff_call(self.tts.get_voice, language, [], None)
                 self.logger.info(f"Generating {line.type} audio with voice {options.voice}")
-                audio_data = await self.tts.to_speech(line.line, options)
+                audio_data = await exponential_backoff_call(self.tts.to_speech, line.line, options)
                 
                 with open(audio_file_path, "wb") as f:
                     f.write(audio_data)

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 from story.story_router import router as story_router
 from video.video_router import router as video_router
+from auth.auth_router import router as auth_router
 from config import API_HOST, API_PORT
 
 load_dotenv()
@@ -27,6 +28,7 @@ app.add_middleware(
 
 app.include_router(story_router)
 app.include_router(video_router)
+app.include_router(auth_router)
 
 @app.get("/")
 async def root():

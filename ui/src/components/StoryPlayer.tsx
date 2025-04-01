@@ -13,6 +13,7 @@ export const StoryPlayer: React.FC = () => {
   const [showSidebar, setShowSidebar] = React.useState(false);
   const [showControls, setShowControls] = React.useState(true);
   const [userDecision, setUserDecision] = useState('');
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const {
     isPlaying,
@@ -37,6 +38,36 @@ export const StoryPlayer: React.FC = () => {
 
   const currentNode = getCurrentNode();
   
+  useEffect(() => {
+    const loadVideo = async () => {
+      if (!currentNode?.videoUrl || !currentStory) return;
+      try {
+        setVideoUrl(null); // Clear previous video URL
+        const url = await api.getVideoUrl(currentStory.id, currentNode.id);
+        setVideoUrl(url);
+        
+        // Wait for video to be ready before playing
+        if (videoRef.current) {
+          videoRef.current.onloadeddata = () => {
+            setPlaying(true);
+            videoRef.current?.play();
+          };
+        }
+      } catch (error) {
+        console.error('Failed to load video:', error);
+        // You might want to show an error message to the user here
+      }
+    };
+
+    loadVideo();
+
+    return () => {
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+    };
+  }, [currentNode, currentStory]);
+
   useEffect(() => {
     // Request fullscreen on mount
     document.documentElement.requestFullscreen().catch(() => {
@@ -92,12 +123,6 @@ export const StoryPlayer: React.FC = () => {
   }, [volume]);
 
   if (!currentStory) return null;
-
-  const videoUrl = currentNode?.videoUrl;
-  console.log('Current Story:', currentStory);
-  console.log('Current Node:', currentNode);
-  console.log('Video URL:', videoUrl);
-  console.log('Decisions:', currentNode?.decisions);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -163,6 +188,11 @@ export const StoryPlayer: React.FC = () => {
           className="w-full h-full object-contain"
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => setPlaying(false)}
+          onError={(e) => {
+            console.error('Video error:', e);
+            // You might want to show an error message to the user here
+          }}
+          crossOrigin="anonymous"
         />
       )}
 

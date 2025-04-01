@@ -56,6 +56,7 @@ class StoryNode(BaseModel):
 class Story(BaseModel):
     """Represents a complete story tree."""
     id: UUID = Field(default_factory=uuid4)
+    user_id: str
     title: str
     genre: Genre
     style: Style
