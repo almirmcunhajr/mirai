@@ -62,7 +62,9 @@ Your task is to output a JSON. Each element must include:
 - You are allowed to generate **only 1 ambient/background sound** and **a maximum of 3 distinct sound effects**.
 - The ambient/background sound can last up to **22.0 seconds**, matching the full duration of the scene if appropriate.
 - **Each sound effect must have a duration between 1.0 and 5.0 seconds**, and must sound **naturally timed** to reflect the action (not too short or abrupt).
-- Do not include any human voice, spoken words, names, pronouns, or music.
+- Spoken language (including speeches, dialogue) must **not** be included.  
+  However, **non-verbal human sounds** (such as distant crowd murmur, gasps, laughter, or footsteps) are allowed when relevant.
+- Do not include names, or pronouns.
 
 ---
 
