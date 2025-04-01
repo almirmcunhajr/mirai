@@ -14,10 +14,18 @@ ui/tag:
 ui/push:
 	docker push ${UI_IMAGE_URL}:${VERSION}
 
-ui/deploy: ui/build ui/tag ui/push
+ui/provision: ui/build ui/tag ui/push
 	gcloud run deploy mirai-ui \
 		--image ${UI_IMAGE_URL}:${VERSION} \
 		--region ${REGION} \
 		--allow-unauthenticated \
 		--env-vars-file ui/env.yaml \
-		--port=${UI_PORT}
+		--port=${UI_PORT} \
+		--memory 2Gi \
+		--cpu 1
+
+ui/deploy: ui/build ui/tag ui/push
+	gcloud run deploy mirai-ui \
+		--image ${UI_IMAGE_URL}:${VERSION} \
+		--region ${REGION} \
+		--env-vars-file ui/env.yaml \

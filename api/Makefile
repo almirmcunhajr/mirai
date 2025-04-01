@@ -13,7 +13,7 @@ api/tag:
 api/push:
 	docker push ${API_IMAGE_URL}:${VERSION}
 
-api/deploy: api/build api/tag api/push
+api/provision: api/build api/tag api/push
 	gcloud run deploy mirai-api \
 		--image ${API_IMAGE_URL}:${VERSION} \
 		--region ${REGION} \
@@ -23,3 +23,9 @@ api/deploy: api/build api/tag api/push
 		--add-volume-mount volume=mirai-videos,mount-path=/app/outputs \
 		--memory 4Gi \
 		--cpu 2 \
+
+api/deploy: api/build api/tag api/push
+	gcloud run deploy mirai-api \
+		--image ${API_IMAGE_URL}:${VERSION} \
+		--region ${REGION} \
+		--env-vars-file api/env.yaml \
