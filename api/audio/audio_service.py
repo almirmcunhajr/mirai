@@ -54,13 +54,24 @@ Your task is to output a JSON. Each element must include:
 ### Rules
 
 - Use the transcription to identify **specific physical actions or events** that require **sound effects** (e.g., "a door slams", "a car drives by", "a glass breaks").
-- Use the image and transcription to identify **ambient or environmental sounds** that should play as **background**. These represent the constant atmosphere of the scene (e.g., rain, wind, traffic hum).
-  - **If a sound is persistent or continuous throughout the scene**, such as rainfall, ocean waves, or a humming machine, it must be added as a **background sound**, not as a sound effect.
-  - The background sound must reflect **all relevant constant elements** present in the scene. For example, if it's raining and there is distant thunder or city traffic, the background sound must combine these into one coherent ambient sound.
+  - **Sound effects must be momentary and clearly linked to an isolated action.** They must not represent continuous or persistent sounds.
+  - Examples of valid sound effects: a footstep, a door closing, a phone dropping, a dog barking once.
+  - Do **not** include sounds as effects if they represent something that would naturally last throughout the scene (e.g., rain, engine idling, crowd murmur) — these belong in the **background**.
+- Use both the **transcription and the image** to identify **ambient or environmental sounds** that should play as **background**. These represent the constant atmosphere of the scene (e.g., rain, wind, traffic hum).
+  - **If a sound is persistent or continuous throughout the scene**, it must be added as a **background sound**, not as a sound effect.
+  - Analyze the image carefully to identify **visual elements that naturally produce ambient sounds**, such as:
+    - Trees (wind rustling through leaves)
+    - Ocean or rivers (water movement, waves)
+    - Rain or snow (falling droplets or flakes)
+    - Fireplaces (crackling fire)
+    - Urban environments (distant traffic, crowd murmur)
+  - The background sound must reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
   - Background sounds should reflect the **overall environment** and **remain consistent** during the scene.
-- You must generate **only one background sound**. It can last up to **22.0 seconds**, or match the full duration of the scene if appropriate.
+- You must generate **only one background sound as a combination of all relevant background information in the scene**. It can last up to **22.0 seconds**, or match the full duration of the scene if appropriate.
+  - The background sound must reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
+  - Background sounds should reflect the **overall environment** and **remain consistent** during the scene.
 - You may generate **up to 3 sound effects**. Each must:
-  - Be based on a specific action mentioned in the transcription.
+  - Be based on a specific, isolated action mentioned in the transcription.
   - Last between **1.0 and 5.0 seconds**.
   - Be naturally timed to the moment it represents.
 - **Do not include music in any sound**, including both background and sound effects.
@@ -72,8 +83,6 @@ Your task is to output a JSON. Each element must include:
 
 ### Transcription  
 {transcription or "This scene has no transcription. Generate only one ambient/environmental sound using the image."}
-
-
 '''
 
     async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
@@ -106,7 +115,7 @@ Your task is to output a JSON. Each element must include:
             {
                 "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{scene_base64_image}",
-                "detail": "low"
+                "detail": "high"
             }
         ])
         chat_options = ChatOptions(response_format=SoundEffectsDescriptionsResponse)
