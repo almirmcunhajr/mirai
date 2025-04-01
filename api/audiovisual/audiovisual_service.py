@@ -61,7 +61,7 @@ class AudioVisualService:
 
         lines_audio_clip = CompositeAudioClip([line_audio.clip for line_audio in lines_audio])
         sound_effects_audio_clip = CompositeAudioClip([audio.clip.with_effects([
-            MultiplyVolume(0.7), 
+            MultiplyVolume(0.6), 
             AudioFadeIn(self._get_audio_fade_duration(audio.clip)), 
             AudioFadeOut(self._get_audio_fade_duration(audio.clip))
         ]) for audio in sound_effects_audios])

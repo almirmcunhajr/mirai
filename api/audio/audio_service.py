@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import os
+from typing import Literal
 
 from tts.tts import TTS, SpeechGenerationOptions, SoundEffectGenerationOptions
 from stt.stt import STT
@@ -8,7 +9,7 @@ from ttt.ttt import TTT, Chat, ChatOptions
 from script.script import Line, LineType
 from story.story import Subject, Character
 from audio.exceptions import AudioGenerationError
-from audio.audio import LineAudio, SoundEffectAudio
+from audio.audio import LineAudio, SoundEffectAudio, SoundEffectType
 from common.base_model_no_extra import BaseModelNoExtra
 from utils.utils import generate_random_string, exponential_backoff_call
 
@@ -18,6 +19,7 @@ class SoundDescriptionRespone(BaseModelNoExtra):
     description: str
     start_time: float
     end_time: float
+    type: Literal[SoundEffectType.SOUND_EFFECT, SoundEffectType.AMBIENT]
 
 class SoundEffectsDescriptionsResponse(BaseModelNoExtra):
     sound_effects_descriptions: list[SoundDescriptionRespone]
@@ -36,69 +38,65 @@ class AudioService:
 
     def _get_sound_effects_description_prompt(self, lines_audios: list[LineAudio]) -> str:
         transcription = '\n'.join([f'{line_audio.type}: {self._format_line_audio_for_sound_effects_desctiption_prompt(line_audio)}' for line_audio in lines_audios])
-        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of **sound effects** and **ambient background sounds** that match both the transcription and the visual.
+        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of **event-based sound effects** and **continuous ambient background sounds** that match both the transcription and the visual context.
 
 You will be provided with:
 
-1. A transcription, segmented by word in the format: `(word, start_time, end_time)`  
+1. A transcription, segmented by word in the format: `(word, start_time, end_time)`.  
 2. An image that visually describes the scene.
 
 Your task is to output a JSON. Each element must include:
 
-- **"description"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. The sound must not include any human voice, names, pronouns, or music.  
+- **"description"**: a realistic and detailed description of the sound, suitable for a text-to-sound model. Sounds must not include human voices, names, pronouns, or music.  
 - **"start_time"**: the precise float (in seconds) when the sound begins.  
-- **"end_time"**: the precise float (in seconds) when the sound ends.
+- **"end_time"**: the precise float (in seconds) when the sound ends. The duration must be at least **5.0 second** and at most **22.0 seconds**.
+- **"type"**: the type of sound, either "sound_effect" or "ambient".
 
 ---
 
 ### Rules
 
-- Use the transcription to identify **specific physical actions or events** that require **sound effects** (e.g., "a door slams", "a car drives by", "a glass breaks").
-  - **Sound effects must be momentary and clearly linked to an isolated action.** They must not represent continuous or persistent sounds.
-  - Examples of valid sound effects: a footstep, a door closing, a phone dropping, a dog barking once.
-  - Do **not** include sounds as effects if they represent something that would naturally last throughout the scene (e.g., rain, engine idling, crowd murmur) — these belong in the **background**.
-- Use both the **transcription and the image** to identify **ambient or environmental sounds** that should play as **background**. These represent the constant atmosphere of the scene (e.g., rain, wind, traffic hum).
-  - **If a sound is persistent or continuous throughout the scene**, it must be added as a **background sound**, not as a sound effect.
-  - Analyze the image carefully to identify **visual elements that naturally produce ambient sounds**, such as:
-    - Trees (wind rustling through leaves)
-    - Ocean or rivers (water movement, waves)
-    - Rain or snow (falling droplets or flakes)
-    - Fireplaces (crackling fire)
-    - Urban environments (distant traffic, crowd murmur)
-- You must generate **one and only one background sound** as a **combination of all important background information** from the scene.
-  - The background sound is **required** and must **last the full duration of the scene**, up to a maximum of **22.0 seconds**.
-  - It should reflect **all relevant constant elements** from both the transcription and the image, combined into a **single cohesive ambient sound**.
-  - Background sounds should feel natural and consistent throughout the scene.
-- You may generate **up to 3 sound effects**. Each must:
-  - Be based on a specific, isolated action mentioned in the transcription.
-  - Last between **1.0 and 5.0 seconds**.
-  - Be naturally timed to the moment it represents.
-- **Do not include music in any sound**, including both background and sound effects.
-- Spoken language (including dialogue and narration) must **not** be included.  
-  - However, **non-verbal human sounds** (such as gasps, coughing, footsteps, distant crowd murmur) are allowed when clearly relevant.
-- Do not include names or pronouns.
+- Use the transcription to identify **transient physical actions or events** that require momentary sound effects (e.g., a door slamming, a car passing, a glass breaking).
+  - Sound effects must be **short and action-specific**, representing quick, isolated moments.
+  - Only include sound effects if they are clearly motivated by the transcription.
+- Use the image to identify **continuous ambient sounds** that represent the **environmental background** of the scene (e.g., rain falling, wind through trees, ocean waves, city traffic).
+  - These ambient sounds must reflect **persistent elements** in the scene.
+  - For example, if trees are visible, the rustling of leaves in the wind should be audible throughout the entire scene — not briefly.
+  - Each background sound must **last the full duration of the scene**, up to a maximum of **22.0 seconds**.
+- Ambient sounds and sound effects may overlap when appropriate, as long as they do not conflict.
+- Spoken language (dialogue or narration) is strictly prohibited.
+  - However, **non-verbal human sounds** (e.g., gasps, coughs, footsteps, distant murmur) are allowed when clearly relevant.
+- **Do not include music in any sound.**
+- Do not include names or pronouns in any description.
+- You may generate up to **2 background sounds** and up to **4 sound effects**, but only when justified by the scene.
 
 ---
 
 ### Transcription  
-{transcription or "This scene has no transcription. Generate only one ambient/environmental sound using the image."}
+{transcription}
+
 '''
 
-    async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
+    async def _generate_sound_effect_audio(self, description_response: SoundDescriptionRespone, audio_file_path: str) -> SoundEffectAudio:
         try:
             async with self.semaphore:
-                duration = min(max(end-start, 0.5), 22)
+                duration = min(max(description_response.end_time-description_response.start_time, 0.5), 22)
                 options = SoundEffectGenerationOptions(duration=duration)
-                self.logger.info(f"Generating sound effect audio with description: {description}")
-                audio_data = await exponential_backoff_call(self.tts.to_sound_effect, description, options)
+                self.logger.info(f"Generating sound effect")
+                audio_data = await exponential_backoff_call(self.tts.to_sound_effect, description_response.description, options)
 
                 with open(audio_file_path, "wb") as f:
                     f.write(audio_data)
 
-                self.logger.info(f"Saved sound effect audio file to {audio_file_path}")
+                self.logger.info(f"Saved sound effect audio file to")
+
+                clip = AudioFileClip(audio_file_path).with_start(description_response.start_time)
+
+                self.logger.info(f'Generated sound effect for:\nDescription: {description_response.description}\nStart time: {description_response.start_time}\nEnd time: {description_response.end_time}\nType: {description_response.type}\n With duration {clip.duration}')
 
                 return SoundEffectAudio(
-                    clip=AudioFileClip(audio_file_path).with_start(start),
+                    clip=clip,
+                    type=description_response.type
                 )
         except Exception as e:
             raise AudioGenerationError(f"Failed to generate sound effect audio: {str(e)}")
@@ -114,7 +112,7 @@ Your task is to output a JSON. Each element must include:
             {
                 "type": "input_image",
                 "image_url": f"data:image/jpeg;base64,{scene_base64_image}",
-                "detail": "high"
+                "detail": "low"
             }
         ])
         chat_options = ChatOptions(response_format=SoundEffectsDescriptionsResponse)
@@ -122,9 +120,7 @@ Your task is to output a JSON. Each element must include:
 
         tasks = [
             self._generate_sound_effect_audio(
-                sound_effect_description.description,
-                sound_effect_description.start_time,
-                sound_effect_description.end_time,
+                sound_effect_description,
                 os.path.join(dir_path, f"{generate_random_string()}.mp3")
             )
             for i, sound_effect_description in enumerate(sound_effects_desctiptions_response.sound_effects_descriptions)
