@@ -12,7 +12,7 @@ class AuthService:
         google_client_id: str,
         jwt_secret: str,
         jwt_algorithm: str = "HS256",
-        access_token_expire_minutes: int = 30
+        access_token_expire_minutes: int = 1440
     ):
         self.google_client_id = google_client_id
         self.jwt_secret = jwt_secret
