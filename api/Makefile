@@ -20,7 +20,7 @@ api/provision: api/build api/tag api/push
 		--allow-unauthenticated \
 		--env-vars-file api/env.yaml \
 		--add-volume name=mirai-videos,type=cloud-storage,bucket=mirai-videos \
-		--add-volume-mount volume=mirai-videos,mount-path=/app/outputs \
+		--add-volume-mount volume=mirai-videos,mount-path=/app/output/videos/ \
 		--memory 4Gi \
 		--cpu 2 \
 
