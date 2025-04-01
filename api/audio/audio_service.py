@@ -36,7 +36,7 @@ class AudioService:
 
     def _get_sound_effects_description_prompt(self, lines_audios: list[LineAudio]) -> str:
         transcription = '\n'.join([f'{line_audio.type}: {self._format_line_audio_for_sound_effects_desctiption_prompt(line_audio)}' for line_audio in lines_audios])
-        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of sound effects and ambient sounds that match both the transcription and the visual.
+        return f'''You are a sound design assistant. Your job is to analyze a scene and return a list of **sound effects** and **ambient background sounds** that match both the transcription and the visual.
 
 You will be provided with:
 
@@ -53,23 +53,27 @@ Your task is to output a JSON. Each element must include:
 
 ### Rules
 
-- Use the transcription to identify **specific physical actions or events** that require sound effects (e.g., "a door slams", "a car drives by", "a glass breaks").
-- Only add sound effects if they are clearly necessary, with **focus on key sounds explicitly mentioned in the transcription**.  
-  **Example**:  
-  If the transcription says: *"She paused as the rain tapped softly against the windowpane,"* then a sound effect like *"gentle raindrops hitting a glass window"* is appropriate.  
-- Use the image to identify **a single ambient or environmental sound** that should be present in the background of the scene, such as a wall clock ticking, distant traffic, or forest birdsong.
-- Ambient sounds can **overlap** with specific sound effects and should reflect natural environmental context.  
-- You are allowed to generate **only 1 ambient/background sound** and **a maximum of 3 distinct sound effects**.
-- The ambient/background sound can last up to **22.0 seconds**, matching the full duration of the scene if appropriate.
-- **Each sound effect must have a duration between 1.0 and 5.0 seconds**, and must sound **naturally timed** to reflect the action (not too short or abrupt).
-- Spoken language (including speeches, dialogue) must **not** be included.  
-  However, **non-verbal human sounds** (such as distant crowd murmur, gasps, laughter, or footsteps) are allowed when relevant.
-- Do not include names, or pronouns.
+- Use the transcription to identify **specific physical actions or events** that require **sound effects** (e.g., "a door slams", "a car drives by", "a glass breaks").
+- Use the image and transcription to identify **ambient or environmental sounds** that should play as **background**. These represent the constant atmosphere of the scene (e.g., rain, wind, traffic hum).
+  - **If a sound is persistent or continuous throughout the scene**, such as rainfall, ocean waves, or a humming machine, it must be added as a **background sound**, not as a sound effect.
+  - The background sound must reflect **all relevant constant elements** present in the scene. For example, if it's raining and there is distant thunder or city traffic, the background sound must combine these into one coherent ambient sound.
+  - Background sounds should reflect the **overall environment** and **remain consistent** during the scene.
+- You must generate **only one background sound**. It can last up to **22.0 seconds**, or match the full duration of the scene if appropriate.
+- You may generate **up to 3 sound effects**. Each must:
+  - Be based on a specific action mentioned in the transcription.
+  - Last between **1.0 and 5.0 seconds**.
+  - Be naturally timed to the moment it represents.
+- **Do not include music in any sound**, including both background and sound effects.
+- Spoken language (including dialogue and narration) must **not** be included.  
+  - However, **non-verbal human sounds** (such as gasps, coughing, footsteps, distant crowd murmur) are allowed when clearly relevant.
+- Do not include names or pronouns.
 
 ---
 
 ### Transcription  
 {transcription or "This scene has no transcription. Generate only one ambient/environmental sound using the image."}
+
+
 '''
 
     async def _generate_sound_effect_audio(self, description: str, start: float, end: float, audio_file_path: str) -> SoundEffectAudio:
