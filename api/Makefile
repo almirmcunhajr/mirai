@@ -1,21 +1,25 @@
 .PHONY: api/build api/tag api/push
 
 VERSION?=$(shell git rev-parse --short HEAD)
-REGION=southamerica-east1
-IMAGE_URL=${REGION}-docker.pkg.dev/mirai-454115/mirai-api/api
+REGION:=southamerica-east1
+API_IMAGE_URL:=${REGION}-docker.pkg.dev/mirai-454115/mirai-api/api
 
 api/build:
 	docker build -t mirai-api api
 
 api/tag:
-	docker tag mirai-api ${IMAGE_URL}:${VERSION}
+	docker tag mirai-api ${API_IMAGE_URL}:${VERSION}
 
 api/push:
-	docker push ${IMAGE_URL}:${VERSION}
+	docker push ${API_IMAGE_URL}:${VERSION}
 
 api/deploy: api/build api/tag api/push
 	gcloud run deploy mirai-api \
-		--image ${IMAGE_URL}:${VERSION} \
+		--image ${API_IMAGE_URL}:${VERSION} \
 		--region ${REGION} \
 		--allow-unauthenticated \
-		--env-vars-file api/env.yaml
+		--env-vars-file api/env.yaml \
+		--add-volume name=mirai-videos,type=cloud-storage,bucket=mirai-videos \
+		--add-volume-mount volume=mirai-videos,mount-path=/app/outputs \
+		--memory 4Gi \
+		--cpu 2 \
